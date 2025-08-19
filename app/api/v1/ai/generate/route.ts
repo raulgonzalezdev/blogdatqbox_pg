@@ -1,0 +1,44 @@
+import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { verifyJwt } from "@/lib/auth";
+import { openaiService } from "@/lib/openai";
+
+export async function POST(request: NextRequest) {
+  try {
+    // Verificar autenticación
+    const token = (await cookies()).get("access_token")?.value;
+    if (!token) {
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+    }
+
+    const payload = await verifyJwt<{ sub: string; role: string }>(token);
+    if (!payload?.sub) {
+      return NextResponse.json({ error: "Token inválido" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { topic, title, style, length, includeImages } = body;
+
+    if (!topic) {
+      return NextResponse.json({ error: "El tema es requerido" }, { status: 400 });
+    }
+
+    // Generar contenido con OpenAI
+    const result = await openaiService.generatePost({
+      topic,
+      title,
+      style: style || 'informative',
+      length: length || 'medium',
+      includeImages: includeImages || false,
+      language: 'es'
+    });
+
+    return NextResponse.json(result);
+  } catch (error: any) {
+    console.error("Error generando contenido:", error);
+    return NextResponse.json(
+      { error: error.message || "Error interno del servidor" },
+      { status: 500 }
+    );
+  }
+}

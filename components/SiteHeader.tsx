@@ -2,12 +2,15 @@
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useState, useEffect } from "react";
-import { Sun, Moon, LogIn, User, Plus, LogOut } from "lucide-react";
+import { Sun, Moon, LogIn, User, Plus, LogOut, Mic } from "lucide-react";
+import LoginDialog from "./LoginDialog";
+import VoiceButton from "./VoiceButton";
 
 export default function SiteHeader() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -35,6 +38,10 @@ export default function SiteHeader() {
     } catch (error) {
       console.error('Error logging out:', error);
     }
+  };
+
+  const handleLoginSuccess = () => {
+    checkAuthStatus();
   };
 
   return (
@@ -65,10 +72,13 @@ export default function SiteHeader() {
               </button>
             </>
           ) : (
-            <Link href="/login" className="btn flex items-center gap-2">
+            <button 
+              onClick={() => setLoginDialogOpen(true)}
+              className="btn flex items-center gap-2"
+            >
               <LogIn className="w-4 h-4" />
               <span className="hidden md:inline">Entrar</span>
-            </Link>
+            </button>
           )}
           
           {mounted && (
@@ -91,6 +101,43 @@ export default function SiteHeader() {
           )}
         </nav>
       </div>
+
+      {/* Login Dialog */}
+      <LoginDialog
+        isOpen={loginDialogOpen}
+        onClose={() => setLoginDialogOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
+      />
+
+      {/* Asistente de voz global */}
+      <VoiceButton
+        onDictateContent={(content, type) => {
+          // Redirigir al admin si no está en una página de edición
+          if (typeof window !== 'undefined' && !window.location.pathname.includes('/admin')) {
+            window.location.href = '/admin';
+          }
+        }}
+        onNavigate={(action, query) => {
+          if (typeof window !== 'undefined') {
+            switch (action) {
+              case 'home':
+                window.location.href = '/';
+                break;
+              case 'new_post':
+                window.location.href = '/admin';
+                break;
+              case 'view_posts':
+                window.location.href = '/admin/posts';
+                break;
+            }
+          }
+        }}
+        onGenerateContent={(topic, style, length) => {
+          if (typeof window !== 'undefined' && !window.location.pathname.includes('/admin')) {
+            window.location.href = '/admin';
+          }
+        }}
+      />
     </header>
   );
 }

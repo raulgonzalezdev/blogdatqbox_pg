@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Save, Eye, ArrowLeft } from "lucide-react";
 import RichTextEditor from "@/components/RichTextEditor";
 import FileUpload from "@/components/FileUpload";
+import AIGenerator from "@/components/AIGenerator";
+import VoiceButton from "@/components/VoiceButton";
 
 export default function AdminPage() {
   const [title, setTitle] = useState("");
@@ -126,6 +128,56 @@ export default function AdminPage() {
     }
   };
 
+  const handleAIGenerate = (data: { title: string; content: string; slug: string }) => {
+    setTitle(data.title);
+    setSlug(data.slug);
+    setContent(data.content);
+  };
+
+  const handleAIImprove = (improvedContent: string) => {
+    setContent(improvedContent);
+  };
+
+  const handleVoiceDictate = (content: string, type: 'title' | 'body' | 'summary') => {
+    switch (type) {
+      case 'title':
+        setTitle(content);
+        break;
+      case 'body':
+        setContent(content);
+        break;
+      case 'summary':
+        // Podrías agregar un campo de resumen si lo necesitas
+        break;
+    }
+  };
+
+  const handleVoiceNavigate = (action: string, query?: string) => {
+    switch (action) {
+      case 'home':
+        router.push('/');
+        break;
+      case 'new_post':
+        router.push('/admin');
+        break;
+      case 'view_posts':
+        router.push('/admin/posts');
+        break;
+      case 'search':
+        // Implementar búsqueda si es necesario
+        break;
+    }
+  };
+
+  const handleVoiceGenerate = (topic: string, style: string, length: string) => {
+    // Usar el generador de IA existente
+    handleAIGenerate({
+      title: '',
+      content: '',
+      slug: ''
+    });
+  };
+
   if (!user) {
     return <div className="py-10 text-center">Cargando...</div>;
   }
@@ -245,6 +297,12 @@ export default function AdminPage() {
             {loading ? "Publicando..." : "Publicar"}
           </button>
           
+          <AIGenerator
+            onGenerate={handleAIGenerate}
+            onImprove={handleAIImprove}
+            currentContent={content}
+          />
+          
           <button
             type="button"
             onClick={() => {
@@ -259,6 +317,13 @@ export default function AdminPage() {
           </button>
         </div>
       </form>
+
+      {/* Asistente de voz */}
+      <VoiceButton
+        onDictateContent={handleVoiceDictate}
+        onNavigate={handleVoiceNavigate}
+        onGenerateContent={handleVoiceGenerate}
+      />
     </main>
   );
 }
