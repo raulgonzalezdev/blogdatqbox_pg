@@ -98,6 +98,8 @@ export default function AdminPage() {
     setLoading(true);
     setError(null);
 
+    const currentContent = editor ? editor.getHTML() : content;
+
     // Validaciones
     if (!title.trim()) {
       setError("El título es requerido");
@@ -109,7 +111,7 @@ export default function AdminPage() {
       setLoading(false);
       return;
     }
-    if (!content.trim()) {
+    if (!currentContent.trim()) {
       setError("El contenido es requerido");
       setLoading(false);
       return;
@@ -138,7 +140,7 @@ export default function AdminPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ title, slug, content }),
+        body: JSON.stringify({ title, slug, content: currentContent }),
       });
 
       if (response.status === 201) {
