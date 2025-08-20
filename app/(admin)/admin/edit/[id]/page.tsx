@@ -2,7 +2,8 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Save, Eye, ArrowLeft, Trash2 } from "lucide-react";
-import RichTextEditor from "@/components/RichTextEditor";
+import EditorJSComponent from "@/components/EditorJS";
+import { htmlToEditorJSBlocks } from "@/lib/editor-converter";
 import FileUpload from "@/components/FileUpload";
 import AIGenerator from "@/components/AIGenerator";
 import VoiceButton from "@/components/VoiceButton";
@@ -10,7 +11,7 @@ import VoiceButton from "@/components/VoiceButton";
 export default function EditPostPage() {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState<any>({ blocks: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
@@ -50,7 +51,8 @@ export default function EditPostPage() {
         setPost(postData);
         setTitle(postData.title);
         setSlug(postData.slug);
-        setContent(postData.content);
+        // Convertir HTML a bloques de Editor.js
+        setContent(htmlToEditorJSBlocks(postData.content));
       } else {
         setError("Post no encontrado");
       }
@@ -106,7 +108,7 @@ export default function EditPostPage() {
       setLoading(false);
       return;
     }
-    if (!content.trim()) {
+    if (!content.blocks || content.blocks.length === 0) {
       setError("El contenido es requerido");
       setLoading(false);
       return;
@@ -123,7 +125,7 @@ export default function EditPostPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ title, slug, content }),
+        body: JSON.stringify({ title, slug, content: await editor.getHTML() }),
       });
 
       if (response.ok) {
@@ -171,11 +173,13 @@ export default function EditPostPage() {
   const handleAIGenerate = (data: { title: string; content: string; slug: string }) => {
     setTitle(data.title);
     setSlug(data.slug);
-    setContent(data.content);
+    // Convertir HTML a bloques de Editor.js
+    setContent(htmlToEditorJSBlocks(data.content));
   };
 
   const handleAIImprove = (improvedContent: string) => {
-    setContent(improvedContent);
+    // Convertir HTML a bloques de Editor.js
+    setContent(htmlToEditorJSBlocks(improvedContent));
   };
 
   const handleVoiceDictate = (content: string, type: 'title' | 'body' | 'summary') => {
@@ -184,7 +188,7 @@ export default function EditPostPage() {
         setTitle(content);
         break;
       case 'body':
-        setContent(content);
+        setContent(htmlToEditorJSBlocks(content));
         break;
       case 'summary':
         // Podrías agregar un campo de resumen si lo necesitas
@@ -308,7 +312,7 @@ export default function EditPostPage() {
                 <div dangerouslySetInnerHTML={{ __html: content }} />
               </div>
             ) : (
-              <RichTextEditor
+              <EditorJSComponent
                 content={content}
                 onChange={setContent}
                 placeholder="Escribe tu contenido aquí..."

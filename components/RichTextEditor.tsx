@@ -166,14 +166,6 @@ const MenuBar = ({ editor }: { editor: any }) => {
         <Redo className="w-4 h-4" />
       </button>
     </div>
-
-    {/* Editor de imágenes */}
-    <ImageEditor
-      isOpen={imageEditorOpen}
-      onClose={() => setImageEditorOpen(false)}
-      currentUrl={editingImageUrl}
-      onSave={handleImageSave}
-    />
   );
 };
 

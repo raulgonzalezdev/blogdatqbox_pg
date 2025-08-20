@@ -2,8 +2,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Save, Eye, ArrowLeft } from "lucide-react";
-import RichTextEditor from "@/components/RichTextEditor";
+import { Save, Eye, ArrowLeft, Code } from "lucide-react";
+import EditorJSComponent from "@/components/EditorJS";
+import { htmlToEditorJSBlocks } from "@/lib/editor-converter";
 import FileUpload from "@/components/FileUpload";
 import AIGenerator from "@/components/AIGenerator";
 import VoiceButton from "@/components/VoiceButton";
@@ -12,7 +13,7 @@ import ErrorDialog from "@/components/ErrorDialog";
 export default function AdminPage() {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState<any>({ blocks: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
@@ -109,7 +110,7 @@ export default function AdminPage() {
       setLoading(false);
       return;
     }
-    if (!content.trim()) {
+    if (!content.blocks || content.blocks.length === 0) {
       setError("El contenido es requerido");
       setLoading(false);
       return;
@@ -138,7 +139,7 @@ export default function AdminPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ title, slug, content }),
+        body: JSON.stringify({ title, slug, content: await editor.getHTML() }),
       });
 
       if (response.status === 201) {
@@ -166,11 +167,13 @@ export default function AdminPage() {
   const handleAIGenerate = (data: { title: string; content: string; slug: string }) => {
     setTitle(data.title);
     setSlug(data.slug);
-    setContent(data.content);
+    // Convertir HTML a bloques de Editor.js
+    setContent(htmlToEditorJSBlocks(data.content));
   };
 
   const handleAIImprove = (improvedContent: string) => {
-    setContent(improvedContent);
+    // Convertir HTML a bloques de Editor.js
+    setContent(htmlToEditorJSBlocks(improvedContent));
   };
 
   const handleVoiceDictate = (content: string, type: 'title' | 'body' | 'summary') => {
@@ -179,7 +182,7 @@ export default function AdminPage() {
         setTitle(content);
         break;
       case 'body':
-        setContent(content);
+        setContent(htmlToEditorJSBlocks(content));
         break;
       case 'summary':
         // Podrías agregar un campo de resumen si lo necesitas
@@ -237,6 +240,14 @@ export default function AdminPage() {
             className="btn flex items-center gap-2"
           >
             Gestionar Posts
+          </Link>
+          
+          <Link
+            href="/admin/compare-editors"
+            className="btn flex items-center gap-2 bg-purple-600 text-white hover:bg-purple-700"
+          >
+            <Code className="w-4 h-4" />
+            Comparar Editores
           </Link>
           <div className="text-sm text-gray-600 dark:text-gray-400">
             Logueado como: <span className="font-medium">{user.name}</span>
@@ -298,7 +309,7 @@ export default function AdminPage() {
               <div dangerouslySetInnerHTML={{ __html: content }} />
             </div>
                       ) : (
-              <RichTextEditor
+              <EditorJSComponent
                 content={content}
                 onChange={setContent}
                 placeholder="Escribe tu contenido aquí..."
@@ -343,7 +354,7 @@ export default function AdminPage() {
             onClick={() => {
               setTitle("");
               setSlug("");
-              setContent("");
+              setContent({ blocks: [] });
               setError(null);
             }}
             className="btn"
