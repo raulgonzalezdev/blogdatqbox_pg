@@ -118,7 +118,7 @@ export default function AdminPage() {
       setLoading(false);
       return;
     }
-    if (!currentContent.trim()) {
+    if (!currentContent || !currentContent.blocks || currentContent.blocks.length === 0) {
       setError("El contenido es requerido");
       setLoading(false);
       return;
@@ -182,7 +182,7 @@ export default function AdminPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ title, slug, content: currentContent }),
+        body: JSON.stringify({ title, slug, content: htmlContent }),
       });
 
       if (response.status === 201) {
