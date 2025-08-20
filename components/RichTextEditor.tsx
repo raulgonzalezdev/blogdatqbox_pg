@@ -19,6 +19,7 @@ import {
   Undo,
   Redo
 } from 'lucide-react';
+import ImageEditor from './ImageEditor';
 
 interface RichTextEditorProps {
   content: string;
@@ -28,15 +29,20 @@ interface RichTextEditorProps {
 }
 
 const MenuBar = ({ editor }: { editor: any }) => {
+  const [imageEditorOpen, setImageEditorOpen] = React.useState(false);
+  const [editingImageUrl, setEditingImageUrl] = React.useState('');
+
   if (!editor) {
     return null;
   }
 
   const addImage = () => {
-    const url = window.prompt('URL de la imagen (puedes subir una imagen desde el área de archivos arriba):');
-    if (url) {
-      editor.chain().focus().setImage({ src: url }).run();
-    }
+    setEditingImageUrl('');
+    setImageEditorOpen(true);
+  };
+
+  const handleImageSave = (newUrl: string) => {
+    editor.chain().focus().setImage({ src: newUrl }).run();
   };
 
   const setLink = () => {
@@ -160,14 +166,30 @@ const MenuBar = ({ editor }: { editor: any }) => {
         <Redo className="w-4 h-4" />
       </button>
     </div>
+
+    {/* Editor de imágenes */}
+    <ImageEditor
+      isOpen={imageEditorOpen}
+      onClose={() => setImageEditorOpen(false)}
+      currentUrl={editingImageUrl}
+      onSave={handleImageSave}
+    />
   );
 };
 
 export default function RichTextEditor({ content, onChange, placeholder = "Escribe tu contenido aquí...", onEditorReady }: RichTextEditorProps) {
+  const [imageEditorOpen, setImageEditorOpen] = React.useState(false);
+  const [editingImageUrl, setEditingImageUrl] = React.useState('');
+
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Image,
+      Image.configure({
+        HTMLAttributes: {
+          class: 'cursor-pointer hover:opacity-80 transition-opacity',
+          onclick: 'handleImageClick(event)',
+        },
+      }),
       Link.configure({
         openOnClick: false,
       }),
@@ -201,11 +223,66 @@ export default function RichTextEditor({ content, onChange, placeholder = "Escri
     }
   }, [content, editor]);
 
+  // Función para manejar clic en imágenes
+  const handleImageClick = React.useCallback((event: MouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (target.tagName === 'IMG') {
+      const imgSrc = target.getAttribute('src');
+      if (imgSrc) {
+        setEditingImageUrl(imgSrc);
+        setImageEditorOpen(true);
+      }
+    }
+  }, []);
+
+  // Agregar event listener para clics en imágenes
+  React.useEffect(() => {
+    if (editor) {
+      const handleClick = (event: MouseEvent) => {
+        const target = event.target as HTMLElement;
+        if (target.tagName === 'IMG' && target.closest('.ProseMirror')) {
+          const imgSrc = target.getAttribute('src');
+          if (imgSrc) {
+            setEditingImageUrl(imgSrc);
+            setImageEditorOpen(true);
+          }
+        }
+      };
+
+      document.addEventListener('click', handleClick);
+      return () => document.removeEventListener('click', handleClick);
+    }
+  }, [editor]);
+
+  // Función para guardar imagen editada
+  const handleImageSave = React.useCallback((newUrl: string) => {
+    if (editor) {
+      // Buscar la imagen actual y reemplazarla
+      const images = editor.view.dom.querySelectorAll('img');
+      images.forEach((img) => {
+        if (img.getAttribute('src') === editingImageUrl) {
+          img.setAttribute('src', newUrl);
+        }
+      });
+      
+      // Actualizar el contenido del editor
+      onChange(editor.getHTML());
+    }
+  }, [editor, editingImageUrl, onChange]);
+
   return (
     <div className="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
       <MenuBar editor={editor} />
       <EditorContent 
         editor={editor} 
+      />
+      
+      {/* Editor de imágenes */}
+      <ImageEditor
+        isOpen={imageEditorOpen}
+        onClose={() => setImageEditorOpen(false)}
+        currentUrl={editingImageUrl}
+        onSave={handleImageSave}
       />
     </div>
   );

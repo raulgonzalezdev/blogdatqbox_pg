@@ -2,10 +2,10 @@
 
 ## Cambios Realizados
 
-### 1. Modelo Más Económico
-- **Antes**: `gpt-4o` (más costoso, ~$0.03/1K tokens)
-- **Ahora**: `gpt-3.5-turbo` (más económico, ~$0.0015/1K tokens)
-- **Ahorro**: ~95% en costos para tareas de escritura
+### 1. Selección Inteligente de Modelos
+- **Con imágenes**: `gpt-4o` (mejor para contenido visual, ~$0.03/1K tokens)
+- **Sin imágenes**: `gpt-3.5-turbo` (más económico para texto, ~$0.0015/1K tokens)
+- **Ahorro**: ~95% en costos para posts sin imágenes
 
 ### 2. Imágenes Reales en Lugar de Placeholders
 - **Antes**: URLs de placeholder como `https://via.placeholder.com/...`
@@ -48,8 +48,9 @@
 ## Beneficios
 
 ### Costos
-- **Reducción del 95%** en costos de API
-- **Misma calidad** de escritura para tareas de blog
+- **Reducción del 95%** en costos para posts sin imágenes
+- **Mejor calidad** para posts con imágenes usando gpt-4o
+- **Optimización automática** según necesidades del contenido
 - **Mejor ROI** para el proyecto
 
 ### Experiencia de Usuario
@@ -65,20 +66,65 @@
 ## Uso
 
 ```typescript
-// Generar post con imágenes
-const post = await openaiService.generatePost({
+// Generar post CON imágenes (usa gpt-4o)
+const postWithImages = await openaiService.generatePost({
   topic: 'tecnología y innovación',
   style: 'informative',
   length: 'medium',
-  includeImages: true
+  includeImages: true // Usará gpt-4o automáticamente
 });
 
-// El contenido incluirá automáticamente imágenes reales de Unsplash
+// Generar post SIN imágenes (usa gpt-3.5-turbo, más económico)
+const postWithoutImages = await openaiService.generatePost({
+  topic: 'tecnología y innovación',
+  style: 'informative',
+  length: 'medium',
+  includeImages: false // Usará gpt-3.5-turbo automáticamente
+});
+
+// Mejorar contenido con imágenes (usa gpt-4o)
+const improvedContent = await openaiService.improveContent(
+  content, 
+  instructions, 
+  true // includeImages
+);
+
+// Generar título con contexto visual (usa gpt-4o)
+const title = await openaiService.generateTitle(
+  topic, 
+  undefined, 
+  true // includeImages
+);
+
+// Generar slug (siempre usa gpt-3.5-turbo, tarea simple)
+const slug = await openaiService.generateSlug(title);
 ```
 
 ## Notas Técnicas
 
+- **Selección automática de modelo**:
+  - `includeImages: true` → `gpt-4o` (mejor para contenido visual)
+  - `includeImages: false` → `gpt-3.5-turbo` (más económico)
+  - **Excepción**: `generateSlug()` siempre usa `gpt-3.5-turbo` (tarea simple)
 - Las imágenes se seleccionan aleatoriamente de cada categoría
 - Todas las URLs incluyen parámetros de optimización (`w=800&h=400&fit=crop`)
 - El sistema detecta automáticamente el tema basado en palabras clave
 - Fallback a categoría "general" si no se encuentra coincidencia específica
+- Logs en consola muestran qué modelo se está usando
+
+## Estimación de Costos
+
+### Post sin imágenes (gpt-3.5-turbo)
+- **Costo por 1K tokens**: ~$0.0015
+- **Post típico (1000 palabras)**: ~$0.002-0.005
+- **100 posts**: ~$0.20-0.50
+
+### Post con imágenes (gpt-4o)
+- **Costo por 1K tokens**: ~$0.03
+- **Post típico (1000 palabras)**: ~$0.04-0.10
+- **100 posts**: ~$4-10
+
+### Ahorro estimado
+- **Posts sin imágenes**: 95% más económico
+- **Posts con imágenes**: Mejor calidad visual
+- **Uso mixto**: Optimización automática según necesidades

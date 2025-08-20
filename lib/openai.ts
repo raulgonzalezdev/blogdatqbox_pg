@@ -148,8 +148,16 @@ Responde en formato JSON con esta estructura:
 `;
 
     try {
+      // Seleccionar modelo según si se incluyen imágenes o no
+      const model = includeImages ? 'gpt-4o' : 'gpt-3.5-turbo';
+      const modelReason = includeImages 
+        ? 'gpt-4o (mejor para generar contenido con imágenes)' 
+        : 'gpt-3.5-turbo (más económico para texto)';
+      
+      console.log(`🤖 Usando modelo: ${modelReason}`);
+      
       const response = await this.makeRequest('/responses', {
-        model: 'gpt-4o', // Modelo más económico para tareas de escritura
+        model: model,
         input: prompt,
         temperature: 0.7,
         max_output_tokens: lengthTokens[length] * 2,
@@ -187,7 +195,7 @@ Responde en formato JSON con esta estructura:
     }
   }
 
-  async improveContent(content: string, instructions: string): Promise<string> {
+  async improveContent(content: string, instructions: string, includeImages: boolean = false): Promise<string> {
     if (!this.apiKey) {
       throw new Error('OPENAI_API_KEY no está configurada. Por favor, configura la variable de entorno.');
     }
@@ -201,20 +209,29 @@ Contenido actual:
 ${content}
 
 Mejora el contenido manteniendo el formato HTML y responde solo con el contenido mejorado.
+${includeImages ? 'Si hay imágenes en el contenido, asegúrate de que las URLs sean válidas y de alta calidad.' : ''}
 `;
 
-         try {
-       const response = await this.makeRequest('/responses', {
-         model: 'gpt-4o', // Modelo más económico
-         input: prompt,
-         temperature: 0.3,
-         max_output_tokens: 4000,
-         text: {
-           format: {
-             type: 'text'
-           }
-         }
-       });
+    try {
+      // Seleccionar modelo según si se incluyen imágenes o no
+      const model = includeImages ? 'gpt-4o' : 'gpt-3.5-turbo';
+      const modelReason = includeImages 
+        ? 'gpt-4o (mejor para mejorar contenido con imágenes)' 
+        : 'gpt-3.5-turbo (más económico para texto)';
+      
+      console.log(`🤖 Usando modelo para mejorar contenido: ${modelReason}`);
+      
+      const response = await this.makeRequest('/responses', {
+        model: model,
+        input: prompt,
+        temperature: 0.3,
+        max_output_tokens: 4000,
+        text: {
+          format: {
+            type: 'text'
+          }
+        }
+      });
 
       return response.output[0]?.content[0]?.text || content;
     } catch (error) {
@@ -223,7 +240,7 @@ Mejora el contenido manteniendo el formato HTML y responde solo con el contenido
     }
   }
 
-  async generateTitle(topic: string, content?: string): Promise<string> {
+  async generateTitle(topic: string, content?: string, includeImages: boolean = false): Promise<string> {
     if (!this.apiKey) {
       throw new Error('OPENAI_API_KEY no está configurada. Por favor, configura la variable de entorno.');
     }
@@ -232,18 +249,26 @@ Mejora el contenido manteniendo el formato HTML y responde solo con el contenido
       ? `Genera un título atractivo y SEO-friendly para este contenido sobre ${topic}:\n\n${content.substring(0, 500)}...`
       : `Genera 5 títulos atractivos y SEO-friendly para un blog sobre ${topic}. Responde solo con los títulos, uno por línea.`;
 
-         try {
-       const response = await this.makeRequest('/responses', {
-         model: 'gpt-4o', // Modelo más económico
-         input: prompt,
-         temperature: 0.8,
-         max_output_tokens: 200,
-         text: {
-           format: {
-             type: 'text'
-           }
-         }
-       });
+    try {
+      // Seleccionar modelo según si se incluyen imágenes o no
+      const model = includeImages ? 'gpt-4o' : 'gpt-3.5-turbo';
+      const modelReason = includeImages 
+        ? 'gpt-4o (mejor para generar títulos con contexto visual)' 
+        : 'gpt-3.5-turbo (más económico para títulos)';
+      
+      console.log(`🤖 Usando modelo para generar título: ${modelReason}`);
+      
+      const response = await this.makeRequest('/responses', {
+        model: model,
+        input: prompt,
+        temperature: 0.8,
+        max_output_tokens: 200,
+        text: {
+          format: {
+            type: 'text'
+          }
+        }
+      });
 
       const titles = response.output[0]?.content[0]?.text || '';
       return content ? titles.trim() : titles.split('\n')[0]?.trim() || 'Nuevo Post';
@@ -253,25 +278,29 @@ Mejora el contenido manteniendo el formato HTML y responde solo con el contenido
     }
   }
 
-  async generateSlug(title: string): Promise<string> {
+  async generateSlug(title: string, includeImages: boolean = false): Promise<string> {
     if (!this.apiKey) {
       throw new Error('OPENAI_API_KEY no está configurada. Por favor, configura la variable de entorno.');
     }
 
     const prompt = `Convierte este título en un slug URL-friendly (solo letras minúsculas, números y guiones): "${title}"`;
 
-         try {
-       const response = await this.makeRequest('/responses', {
-         model: 'gpt-4o', // Modelo más económico
-         input: prompt,
-         temperature: 0.1,
-         max_output_tokens: 100,
-         text: {
-           format: {
-             type: 'text'
-           }
-         }
-       });
+    try {
+      // Para slugs siempre usamos gpt-3.5-turbo ya que es una tarea simple
+      const model = 'gpt-3.5-turbo';
+      console.log(`🤖 Usando modelo para generar slug: ${model} (tarea simple, siempre económico)`);
+      
+      const response = await this.makeRequest('/responses', {
+        model: model,
+        input: prompt,
+        temperature: 0.1,
+        max_output_tokens: 100,
+        text: {
+          format: {
+            type: 'text'
+          }
+        }
+      });
 
       const slug = response.output[0]?.content[0]?.text || '';
       return slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');

@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { content, instructions } = body;
+    const { content, instructions, includeImages = false } = body;
 
     if (!content || !instructions) {
       return NextResponse.json({ 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Mejorar contenido con OpenAI
-    const improvedContent = await openaiService.improveContent(content, instructions);
+    const improvedContent = await openaiService.improveContent(content, instructions, includeImages);
 
     return NextResponse.json({ content: improvedContent });
   } catch (error: any) {

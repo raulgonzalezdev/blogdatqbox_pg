@@ -105,7 +105,8 @@ export default function AIGenerator({ onGenerate, onImprove, currentContent }: A
         },
         body: JSON.stringify({
           content: currentContent,
-          instructions: improveInstructions
+          instructions: improveInstructions,
+          includeImages: includeImages
         })
       });
 
@@ -146,7 +147,10 @@ export default function AIGenerator({ onGenerate, onImprove, currentContent }: A
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ topic })
+        body: JSON.stringify({ 
+          topic,
+          includeImages: includeImages
+        })
       });
 
       if (response.ok) {

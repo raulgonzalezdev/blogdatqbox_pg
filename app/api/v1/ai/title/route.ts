@@ -17,14 +17,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { topic } = body;
+    const { topic, includeImages = false } = body;
 
     if (!topic) {
       return NextResponse.json({ error: "El tema es requerido" }, { status: 400 });
     }
 
     // Generar título con OpenAI
-    const title = await openaiService.generateTitle(topic);
+    const title = await openaiService.generateTitle(topic, undefined, includeImages);
 
     return NextResponse.json({ title });
   } catch (error: any) {
