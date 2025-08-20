@@ -19,12 +19,106 @@ export default function AdminPage() {
   const [previewMode, setPreviewMode] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   const [editor, setEditor] = useState<any>(null);
+  const [originalAIContent, setOriginalAIContent] = useState<string>('');
+  const [hasManualChanges, setHasManualChanges] = useState(false);
+  
+  // Función para combinar contenido manual con imágenes de la IA
+  const combineContentWithImages = (manualHTML: string, aiHTML: string): string => {
+    if (!aiHTML) return manualHTML;
+    
+    // Extraer todas las imágenes del contenido de la IA con sus posiciones
+    const imgRegex = /<img[^>]+src="([^"]+)"[^>]*>/g;
+    const aiImagePositions: { image: string; position: number }[] = [];
+    let match;
+    
+    while ((match = imgRegex.exec(aiHTML)) !== null) {
+      aiImagePositions.push({
+        image: match[0],
+        position: match.index
+      });
+    }
+    
+    console.log('🖼️ Found AI images:', aiImagePositions.length);
+    
+    // Si no hay imágenes en la IA, devolver el contenido manual
+    if (aiImagePositions.length === 0) {
+      return manualHTML;
+    }
+    
+    // Buscar si ya hay imágenes en el contenido manual
+    const manualImgRegex = /<img[^>]+src="([^"]+)"[^>]*>/g;
+    const manualImages: string[] = [];
+    while ((match = manualImgRegex.exec(manualHTML)) !== null) {
+      manualImages.push(match[0]);
+    }
+    
+    console.log('🖼️ Found manual images:', manualImages.length);
+    
+    // Si el contenido manual no tiene imágenes, insertar las de la IA en sus posiciones originales
+    if (manualImages.length === 0) {
+      // Ordenar las imágenes por posición en el contenido original
+      aiImagePositions.sort((a, b) => a.position - b.position);
+      
+      // Calcular las posiciones relativas en el contenido manual
+      const manualLength = manualHTML.length;
+      const insertionPoints: { image: string; position: number }[] = [];
+      
+      aiImagePositions.forEach((imgData, index) => {
+        // Calcular posición relativa en el contenido manual
+        const relativePosition = Math.floor((imgData.position / aiHTML.length) * manualLength);
+        insertionPoints.push({
+          image: imgData.image,
+          position: relativePosition
+        });
+      });
+      
+      // Ordenar por posición para insertar desde el final hacia el principio
+      insertionPoints.sort((a, b) => b.position - a.position);
+      
+      let combinedHTML = manualHTML;
+      insertionPoints.forEach(({ image, position }) => {
+        const insertPosition = Math.min(position, combinedHTML.length);
+        combinedHTML = combinedHTML.slice(0, insertPosition) + '\n\n' + image + '\n\n' + combinedHTML.slice(insertPosition);
+      });
+      
+      console.log('🖼️ Combined content with AI images at original positions');
+      return combinedHTML;
+    }
+    
+    // Si ambos tienen imágenes, devolver el manual (el usuario las mantuvo)
+    return manualHTML;
+  };
   
   const setEditorWithLog = useCallback((editorInstance: any) => {
     console.log('🎯 Editor set in admin page:', editorInstance);
     console.log('🎯 Editor methods available:', editorInstance ? Object.getOwnPropertyNames(Object.getPrototypeOf(editorInstance)) : 'null');
     setEditor(editorInstance);
   }, []);
+
+  // Función para detectar cambios manuales en el editor
+  const handleEditorChange = useCallback((newContent: any) => {
+    setContent(newContent);
+    
+    // Siempre marcar como cambios manuales si hay contenido en el editor
+    if (newContent && newContent.blocks && newContent.blocks.length > 0) {
+      console.log('✏️ Manual changes detected in editor');
+      setHasManualChanges(true);
+      
+      // Si hay contenido original de IA, mostrar en consola que se combinarán las imágenes
+      if (originalAIContent) {
+        console.log('🖼️ Will combine manual content with AI images in preview and save');
+      }
+    }
+    
+    // Si hay contenido original de IA, también comparar para logging
+    if (originalAIContent && newContent && newContent.blocks) {
+      const editorHTML = editorJSBlocksToHTML(newContent);
+      // Comparar si el contenido del editor es diferente al original de la IA
+      if (editorHTML !== originalAIContent) {
+        console.log('✏️ Content differs from original AI content');
+      }
+    }
+  }, [originalAIContent]);
   const [errorDialog, setErrorDialog] = useState<{ isOpen: boolean; message: string }>({ isOpen: false, message: '' });
   const router = useRouter();
 
@@ -105,8 +199,6 @@ export default function AdminPage() {
     setLoading(true);
     setError(null);
 
-    const currentContent = editor ? editor.getHTML() : content;
-
     // Validaciones
     if (!title.trim()) {
       setError("El título es requerido");
@@ -118,7 +210,7 @@ export default function AdminPage() {
       setLoading(false);
       return;
     }
-    if (!currentContent || !currentContent.blocks || currentContent.blocks.length === 0) {
+    if (!content || !content.blocks || content.blocks.length === 0) {
       setError("El contenido es requerido");
       setLoading(false);
       return;
@@ -141,39 +233,80 @@ export default function AdminPage() {
       const sessionData = await sessionResponse.json();
       const token = sessionData.token;
 
-      // Obtener el contenido HTML del editor
+      // Obtener el contenido HTML para enviar
       let htmlContent = '';
-      console.log('🔍 handleSubmit - Editor state:', {
+      
+      console.log('🔍 Submit state:', {
+        hasManualChanges,
+        hasOriginalAIContent: !!originalAIContent,
         hasEditor: !!editor,
-        editorType: typeof editor,
-        hasGetHTML: editor ? typeof editor.getHTML === 'function' : false,
-        editorKeys: editor ? Object.keys(editor) : 'null',
-        editorMethods: editor ? Object.getOwnPropertyNames(Object.getPrototypeOf(editor)) : 'null'
+        contentBlocks: content?.blocks?.length || 0
       });
       
-      if (editor && typeof editor.getHTML === 'function') {
-        try {
-          console.log('🔍 About to call editor.getHTML()');
-          htmlContent = await editor.getHTML();
-          console.log('📄 HTML content for submission:', htmlContent);
-          console.log('📄 HTML content length:', htmlContent.length);
-        } catch (error) {
-          console.error('❌ Error getting HTML from editor:', error);
-          setError("Error obteniendo el contenido del editor");
+      // Si hay cambios manuales, combinar contenido manual con imágenes de la IA
+      if (hasManualChanges) {
+        console.log('✏️ Combining manual content with AI images');
+        if (editor && typeof editor.getHTML === 'function') {
+          try {
+            console.log('🔍 About to call editor.getHTML()');
+            const manualHTML = await editor.getHTML();
+            console.log('📄 Manual HTML content:', manualHTML);
+            console.log('📄 Manual HTML content length:', manualHTML.length);
+            
+            // Combinar contenido manual con imágenes de la IA
+            htmlContent = combineContentWithImages(manualHTML, originalAIContent);
+            console.log('📄 Final combined HTML content:', htmlContent);
+            console.log('📄 Final HTML content length:', htmlContent.length);
+          } catch (error) {
+            console.error('❌ Error getting HTML from editor:', error);
+            setError("Error obteniendo el contenido del editor");
+            setLoading(false);
+            return;
+          }
+        } else {
+          console.error('❌ Editor not available for getHTML');
+          setError("Editor no disponible");
           setLoading(false);
           return;
         }
+      } else if (originalAIContent) {
+        // Si no hay cambios manuales y tenemos contenido original de la IA, usarlo (tiene las imágenes)
+        console.log('🎯 Using original AI content with images:', originalAIContent);
+        htmlContent = originalAIContent;
       } else {
-        console.error('❌ Editor not available for getHTML');
-        console.error('❌ Editor details:', {
-          editor: editor,
+        // Si no hay contenido de IA, usar el del editor
+        console.log('🔍 handleSubmit - Editor state:', {
           hasEditor: !!editor,
           editorType: typeof editor,
-          hasGetHTML: editor ? typeof editor.getHTML === 'function' : false
+          hasGetHTML: editor ? typeof editor.getHTML === 'function' : false,
+          editorKeys: editor ? Object.keys(editor) : 'null',
+          editorMethods: editor ? Object.getOwnPropertyNames(Object.getPrototypeOf(editor)) : 'null'
         });
-        setError("Editor no disponible");
-        setLoading(false);
-        return;
+        
+        if (editor && typeof editor.getHTML === 'function') {
+          try {
+            console.log('🔍 About to call editor.getHTML()');
+            htmlContent = await editor.getHTML();
+            console.log('📄 HTML content for submission:', htmlContent);
+            console.log('📄 HTML content length:', htmlContent.length);
+          } catch (error) {
+            console.error('❌ Error getting HTML from editor:', error);
+            setError("Error obteniendo el contenido del editor");
+            setLoading(false);
+            return;
+          }
+        } else {
+          console.error('❌ Editor not available for getHTML');
+          console.error('❌ Editor details:', {
+            editor: editor,
+            hasEditor: !!editor,
+            editorType: typeof editor,
+            hasGetHTML: editor ? typeof editor.getHTML === 'function' : false
+          });
+          setError("Editor no disponible");
+          setLoading(false);
+          return;
+        }
       }
 
       const response = await fetch('/api/v1/posts', {
@@ -211,6 +344,10 @@ export default function AdminPage() {
     console.log('🤖 AI Generated data:', data);
     setTitle(data.title);
     setSlug(data.slug);
+    // Guardar el HTML original de la IA
+    setOriginalAIContent(data.content);
+    // Resetear flag de cambios manuales
+    setHasManualChanges(false);
     // Convertir HTML a bloques de Editor.js
     const convertedContent = htmlToEditorJSBlocks(data.content);
     console.log('🔄 Converted HTML to Editor.js blocks:', convertedContent);
@@ -219,6 +356,10 @@ export default function AdminPage() {
 
   const handleAIImprove = (improvedContent: string) => {
     console.log('🤖 AI Improved content:', improvedContent);
+    // Guardar el HTML mejorado de la IA
+    setOriginalAIContent(improvedContent);
+    // Resetear flag de cambios manuales
+    setHasManualChanges(false);
     // Convertir HTML a bloques de Editor.js
     const convertedContent = htmlToEditorJSBlocks(improvedContent);
     console.log('🔄 Converted improved HTML to Editor.js blocks:', convertedContent);
@@ -232,6 +373,10 @@ export default function AdminPage() {
         setTitle(content);
         break;
       case 'body':
+        // Guardar el HTML del dictado por voz
+        setOriginalAIContent(content);
+        // Resetear flag de cambios manuales
+        setHasManualChanges(false);
         const convertedContent = htmlToEditorJSBlocks(content);
         console.log('🔄 Converted voice content to Editor.js blocks:', convertedContent);
         setContent(convertedContent);
@@ -343,30 +488,41 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="block text-sm font-medium">Contenido</label>
-            <button
-              type="button"
-              onClick={() => setPreviewMode(!previewMode)}
-              className="btn flex items-center gap-2 text-sm"
-            >
-              <Eye className="w-4 h-4" />
-              {previewMode ? 'Editar' : 'Vista previa'}
-            </button>
-          </div>
+                 <div>
+           <div className="flex items-center justify-between mb-2">
+             <div className="flex items-center gap-2">
+               <label className="block text-sm font-medium">Contenido</label>
+               {hasManualChanges && originalAIContent && (
+                 <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full">
+                   🖼️ Imágenes preservadas
+                 </span>
+               )}
+             </div>
+             <button
+               type="button"
+               onClick={() => setPreviewMode(!previewMode)}
+               className="btn flex items-center gap-2 text-sm"
+             >
+               <Eye className="w-4 h-4" />
+               {previewMode ? 'Editar' : 'Vista previa'}
+             </button>
+           </div>
           
-          {previewMode ? (
-            <div className="border border-gray-300 dark:border-gray-700 rounded-lg p-4 min-h-[300px] prose max-w-none">
-              <div dangerouslySetInnerHTML={{ __html: editorJSBlocksToHTML(content) }} />
-            </div>
-                      ) : (
-              <EditorJSComponent
-                content={content}
-                onChange={setContent}
-                placeholder="Escribe tu contenido aquí..."
-                onEditorReady={setEditorWithLog}
-              />
+                     {previewMode ? (
+             <div className="border border-gray-300 dark:border-gray-700 rounded-lg p-4 min-h-[300px] prose max-w-none">
+               <div dangerouslySetInnerHTML={{ 
+                 __html: hasManualChanges && originalAIContent 
+                   ? combineContentWithImages(editorJSBlocksToHTML(content), originalAIContent)
+                   : editorJSBlocksToHTML(content)
+               }} />
+             </div>
+                       ) : (
+                             <EditorJSComponent
+                 content={content}
+                 onChange={handleEditorChange}
+                 placeholder="Escribe tu contenido aquí..."
+                 onEditorReady={setEditorWithLog}
+               />
             )}
         </div>
 
@@ -401,18 +557,20 @@ export default function AdminPage() {
             currentContent={content}
           />
           
-          <button
-            type="button"
-            onClick={() => {
-              setTitle("");
-              setSlug("");
-              setContent({ blocks: [] });
-              setError(null);
-            }}
-            className="btn"
-          >
-            Limpiar
-          </button>
+                                  <button
+               type="button"
+               onClick={() => {
+                 setTitle("");
+                 setSlug("");
+                 setContent({ blocks: [] });
+                 setOriginalAIContent("");
+                 setHasManualChanges(false);
+                 setError(null);
+               }}
+               className="btn"
+             >
+               Limpiar
+             </button>
         </div>
       </form>
 
