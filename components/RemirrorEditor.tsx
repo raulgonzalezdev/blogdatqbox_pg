@@ -204,6 +204,19 @@ const RemirrorEditor: React.FC<RemirrorEditorProps> = ({
 
 
 
+  // Actualizar contenido cuando cambie la prop content
+  React.useEffect(() => {
+    if (content && manager) {
+      console.log('🔄 Updating Remirror content from prop:', content);
+      try {
+        // Remirror se actualiza automáticamente cuando cambia el content prop
+        // No necesitamos actualizar manualmente
+      } catch (error) {
+        console.error('❌ Error updating Remirror content:', error);
+      }
+    }
+  }, [content, manager]);
+
   return (
     <div className="border border-gray-300 dark:border-gray-700 rounded-lg">
       <div className="remirror-theme">
@@ -213,12 +226,9 @@ const RemirrorEditor: React.FC<RemirrorEditorProps> = ({
           onChange={({ state }) => {
             // Este onChange se ejecuta cuando el contenido cambia
             console.log('🔄 Remirror onChange triggered');
-            // Llamar al onChange del componente padre con HTML
-            const html = state.doc.textContent;
-            onChange(html);
           }}
         >
-          <EditorContent onEditorReady={onEditorReady} />
+          <EditorContent onEditorReady={onEditorReady} onChange={onChange} />
         </Remirror>
       </div>
     </div>
