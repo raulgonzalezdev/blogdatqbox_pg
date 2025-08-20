@@ -105,6 +105,8 @@ export default function AdminPage() {
     setLoading(true);
     setError(null);
 
+    const currentContent = editor ? editor.getHTML() : content;
+
     // Validaciones
     if (!title.trim()) {
       setError("El título es requerido");
@@ -116,7 +118,7 @@ export default function AdminPage() {
       setLoading(false);
       return;
     }
-    if (!content.blocks || content.blocks.length === 0) {
+    if (!currentContent.trim()) {
       setError("El contenido es requerido");
       setLoading(false);
       return;
@@ -180,7 +182,7 @@ export default function AdminPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ title, slug, content: htmlContent }),
+        body: JSON.stringify({ title, slug, content: currentContent }),
       });
 
       if (response.status === 201) {
