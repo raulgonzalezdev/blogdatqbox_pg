@@ -3,8 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Save, Eye, ArrowLeft, Code } from "lucide-react";
-import EditorJSComponent from "@/components/EditorJS";
-import { htmlToEditorJSBlocks, editorJSBlocksToHTML } from "@/lib/editor-converter";
+import RemirrorEditor from "@/components/RemirrorEditor";
 import FileUpload from "@/components/FileUpload";
 import AIGenerator from "@/components/AIGenerator";
 import VoiceButton from "@/components/VoiceButton";
@@ -13,7 +12,7 @@ import ErrorDialog from "@/components/ErrorDialog";
 export default function AdminPage() {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
-  const [content, setContent] = useState<any>({ blocks: [] });
+  const [content, setContent] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
@@ -26,22 +25,19 @@ export default function AdminPage() {
   const combineContentWithImages = (manualHTML: string, aiHTML: string): string => {
     if (!aiHTML) return manualHTML;
     
-    // Extraer todas las imágenes del contenido de la IA con sus posiciones
+    // Extraer todas las imágenes del contenido de la IA
     const imgRegex = /<img[^>]+src="([^"]+)"[^>]*>/g;
-    const aiImagePositions: { image: string; position: number }[] = [];
+    const aiImages: string[] = [];
     let match;
     
     while ((match = imgRegex.exec(aiHTML)) !== null) {
-      aiImagePositions.push({
-        image: match[0],
-        position: match.index
-      });
+      aiImages.push(match[0]);
     }
     
-    console.log('🖼️ Found AI images:', aiImagePositions.length);
+    console.log('🖼️ Found AI images:', aiImages.length);
     
     // Si no hay imágenes en la IA, devolver el contenido manual
-    if (aiImagePositions.length === 0) {
+    if (aiImages.length === 0) {
       return manualHTML;
     }
     
@@ -54,34 +50,10 @@ export default function AdminPage() {
     
     console.log('🖼️ Found manual images:', manualImages.length);
     
-    // Si el contenido manual no tiene imágenes, insertar las de la IA en sus posiciones originales
+    // Si el contenido manual no tiene imágenes, agregar las de la IA al final
     if (manualImages.length === 0) {
-      // Ordenar las imágenes por posición en el contenido original
-      aiImagePositions.sort((a, b) => a.position - b.position);
-      
-      // Calcular las posiciones relativas en el contenido manual
-      const manualLength = manualHTML.length;
-      const insertionPoints: { image: string; position: number }[] = [];
-      
-      aiImagePositions.forEach((imgData, index) => {
-        // Calcular posición relativa en el contenido manual
-        const relativePosition = Math.floor((imgData.position / aiHTML.length) * manualLength);
-        insertionPoints.push({
-          image: imgData.image,
-          position: relativePosition
-        });
-      });
-      
-      // Ordenar por posición para insertar desde el final hacia el principio
-      insertionPoints.sort((a, b) => b.position - a.position);
-      
-      let combinedHTML = manualHTML;
-      insertionPoints.forEach(({ image, position }) => {
-        const insertPosition = Math.min(position, combinedHTML.length);
-        combinedHTML = combinedHTML.slice(0, insertPosition) + '\n\n' + image + '\n\n' + combinedHTML.slice(insertPosition);
-      });
-      
-      console.log('🖼️ Combined content with AI images at original positions');
+      const combinedHTML = manualHTML + '\n\n' + aiImages.join('\n');
+      console.log('🖼️ Combined content with AI images');
       return combinedHTML;
     }
     
@@ -100,7 +72,7 @@ export default function AdminPage() {
     setContent(newContent);
     
     // Siempre marcar como cambios manuales si hay contenido en el editor
-    if (newContent && newContent.blocks && newContent.blocks.length > 0) {
+    if (newContent && newContent.trim()) {
       console.log('✏️ Manual changes detected in editor');
       setHasManualChanges(true);
       
@@ -111,10 +83,9 @@ export default function AdminPage() {
     }
     
     // Si hay contenido original de IA, también comparar para logging
-    if (originalAIContent && newContent && newContent.blocks) {
-      const editorHTML = editorJSBlocksToHTML(newContent);
+    if (originalAIContent && newContent) {
       // Comparar si el contenido del editor es diferente al original de la IA
-      if (editorHTML !== originalAIContent) {
+      if (newContent !== originalAIContent) {
         console.log('✏️ Content differs from original AI content');
       }
     }
@@ -210,7 +181,7 @@ export default function AdminPage() {
       setLoading(false);
       return;
     }
-    if (!content || !content.blocks || content.blocks.length === 0) {
+    if (!content || !content.trim()) {
       setError("El contenido es requerido");
       setLoading(false);
       return;
@@ -236,12 +207,12 @@ export default function AdminPage() {
       // Obtener el contenido HTML para enviar
       let htmlContent = '';
       
-      console.log('🔍 Submit state:', {
-        hasManualChanges,
-        hasOriginalAIContent: !!originalAIContent,
-        hasEditor: !!editor,
-        contentBlocks: content?.blocks?.length || 0
-      });
+             console.log('🔍 Submit state:', {
+         hasManualChanges,
+         hasOriginalAIContent: !!originalAIContent,
+         hasEditor: !!editor,
+         contentLength: content?.length || 0
+       });
       
       // Si hay cambios manuales, combinar contenido manual con imágenes de la IA
       if (hasManualChanges) {
@@ -348,10 +319,8 @@ export default function AdminPage() {
     setOriginalAIContent(data.content);
     // Resetear flag de cambios manuales
     setHasManualChanges(false);
-    // Convertir HTML a bloques de Editor.js
-    const convertedContent = htmlToEditorJSBlocks(data.content);
-    console.log('🔄 Converted HTML to Editor.js blocks:', convertedContent);
-    setContent(convertedContent);
+    // Usar el HTML directamente
+    setContent(data.content);
   };
 
   const handleAIImprove = (improvedContent: string) => {
@@ -360,10 +329,8 @@ export default function AdminPage() {
     setOriginalAIContent(improvedContent);
     // Resetear flag de cambios manuales
     setHasManualChanges(false);
-    // Convertir HTML a bloques de Editor.js
-    const convertedContent = htmlToEditorJSBlocks(improvedContent);
-    console.log('🔄 Converted improved HTML to Editor.js blocks:', convertedContent);
-    setContent(convertedContent);
+    // Usar el HTML directamente
+    setContent(improvedContent);
   };
 
   const handleVoiceDictate = (content: string, type: 'title' | 'body' | 'summary') => {
@@ -377,9 +344,7 @@ export default function AdminPage() {
         setOriginalAIContent(content);
         // Resetear flag de cambios manuales
         setHasManualChanges(false);
-        const convertedContent = htmlToEditorJSBlocks(content);
-        console.log('🔄 Converted voice content to Editor.js blocks:', convertedContent);
-        setContent(convertedContent);
+        setContent(content);
         break;
       case 'summary':
         // Podrías agregar un campo de resumen si lo necesitas
@@ -508,22 +473,22 @@ export default function AdminPage() {
              </button>
            </div>
           
-                     {previewMode ? (
+                                {previewMode ? (
              <div className="border border-gray-300 dark:border-gray-700 rounded-lg p-4 min-h-[300px] prose max-w-none">
                <div dangerouslySetInnerHTML={{ 
                  __html: hasManualChanges && originalAIContent 
-                   ? combineContentWithImages(editorJSBlocksToHTML(content), originalAIContent)
-                   : editorJSBlocksToHTML(content)
+                   ? combineContentWithImages(content, originalAIContent)
+                   : content
                }} />
              </div>
                        ) : (
-                             <EditorJSComponent
-                 content={content}
-                 onChange={handleEditorChange}
-                 placeholder="Escribe tu contenido aquí..."
-                 onEditorReady={setEditorWithLog}
-               />
-            )}
+                               <RemirrorEditor
+                  content={content}
+                  onChange={handleEditorChange}
+                  placeholder="Escribe tu contenido aquí..."
+                  onEditorReady={setEditorWithLog}
+                />
+             )}
         </div>
 
         <div>
@@ -562,7 +527,7 @@ export default function AdminPage() {
                onClick={() => {
                  setTitle("");
                  setSlug("");
-                 setContent({ blocks: [] });
+                 setContent("");
                  setOriginalAIContent("");
                  setHasManualChanges(false);
                  setError(null);
