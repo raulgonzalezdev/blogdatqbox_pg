@@ -1,4 +1,32 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { verifyJwt } from "@/lib/auth";
+
+export async function GET() {
+  const cookieStore = cookies();
+  const token = cookieStore.get("access_token");
+  
+  if (!token?.value) {
+    return NextResponse.json({ error: "No hay sesión activa" }, { status: 401 });
+  }
+  
+  try {
+    const payload = await verifyJwt(token.value);
+    if (!payload) {
+      return NextResponse.json({ error: "Token inválido" }, { status: 401 });
+    }
+    
+    return NextResponse.json({ 
+      token: token.value,
+      user: {
+        id: payload.sub,
+        role: payload.role
+      }
+    });
+  } catch (error) {
+    return NextResponse.json({ error: "Token inválido" }, { status: 401 });
+  }
+}
 
 export async function POST(req: Request) {
   const { access_token, expires_in } = await req.json();

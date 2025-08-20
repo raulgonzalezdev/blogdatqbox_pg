@@ -11,6 +11,7 @@ import {
   X,
   RefreshCw
 } from 'lucide-react';
+import ErrorDialog from './ErrorDialog';
 
 interface AIGeneratorProps {
   onGenerate: (data: { title: string; content: string; slug: string }) => void;
@@ -28,15 +29,28 @@ export default function AIGenerator({ onGenerate, onImprove, currentContent }: A
   const [length, setLength] = useState<'short' | 'medium' | 'long'>('medium');
   const [includeImages, setIncludeImages] = useState(false);
   const [improveInstructions, setImproveInstructions] = useState('');
+  const [errorDialog, setErrorDialog] = useState<{ isOpen: boolean; message: string }>({ isOpen: false, message: '' });
 
   const handleGenerate = async () => {
     if (!topic.trim()) return;
     
     setIsGenerating(true);
     try {
+      // Obtener el token de la sesión
+      const sessionResponse = await fetch('/api/v1/auth/session');
+      if (!sessionResponse.ok) {
+        throw new Error('Sesión expirada');
+      }
+      
+      const sessionData = await sessionResponse.json();
+      const token = sessionData.token;
+
       const response = await fetch('/api/v1/ai/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           topic,
           title: title || undefined,
@@ -60,7 +74,10 @@ export default function AIGenerator({ onGenerate, onImprove, currentContent }: A
       setIsOpen(false);
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al generar contenido con IA');
+      setErrorDialog({ 
+        isOpen: true, 
+        message: 'Error al generar contenido con IA. Por favor, intenta de nuevo.' 
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -71,9 +88,21 @@ export default function AIGenerator({ onGenerate, onImprove, currentContent }: A
     
     setIsImproving(true);
     try {
+      // Obtener el token de la sesión
+      const sessionResponse = await fetch('/api/v1/auth/session');
+      if (!sessionResponse.ok) {
+        throw new Error('Sesión expirada');
+      }
+      
+      const sessionData = await sessionResponse.json();
+      const token = sessionData.token;
+
       const response = await fetch('/api/v1/ai/improve', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           content: currentContent,
           instructions: improveInstructions
@@ -89,7 +118,10 @@ export default function AIGenerator({ onGenerate, onImprove, currentContent }: A
       setImproveInstructions('');
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al mejorar el contenido');
+      setErrorDialog({ 
+        isOpen: true, 
+        message: 'Error al mejorar el contenido. Por favor, intenta de nuevo.' 
+      });
     } finally {
       setIsImproving(false);
     }
@@ -99,9 +131,21 @@ export default function AIGenerator({ onGenerate, onImprove, currentContent }: A
     if (!topic.trim()) return;
     
     try {
+      // Obtener el token de la sesión
+      const sessionResponse = await fetch('/api/v1/auth/session');
+      if (!sessionResponse.ok) {
+        throw new Error('Sesión expirada');
+      }
+      
+      const sessionData = await sessionResponse.json();
+      const token = sessionData.token;
+
       const response = await fetch('/api/v1/ai/title', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ topic })
       });
 
@@ -124,6 +168,15 @@ export default function AIGenerator({ onGenerate, onImprove, currentContent }: A
         <Sparkles className="w-4 h-4" />
         <span className="hidden md:inline">Generar con IA</span>
       </button>
+
+      {/* Diálogo de error */}
+      <ErrorDialog
+        isOpen={errorDialog.isOpen}
+        onClose={() => setErrorDialog({ isOpen: false, message: '' })}
+        title="Error de IA"
+        message={errorDialog.message}
+        type="error"
+      />
 
       {/* Modal */}
       {isOpen && (

@@ -2,9 +2,8 @@
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useState, useEffect } from "react";
-import { Sun, Moon, LogIn, User, Plus, LogOut, Mic } from "lucide-react";
+import { Sun, Moon, LogIn, User, Plus, LogOut } from "lucide-react";
 import LoginDialog from "./LoginDialog";
-import VoiceButton from "./VoiceButton";
 
 export default function SiteHeader() {
   const { theme, setTheme } = useTheme();
@@ -107,36 +106,6 @@ export default function SiteHeader() {
         isOpen={loginDialogOpen}
         onClose={() => setLoginDialogOpen(false)}
         onLoginSuccess={handleLoginSuccess}
-      />
-
-      {/* Asistente de voz global */}
-      <VoiceButton
-        onDictateContent={(content, type) => {
-          // Redirigir al admin si no está en una página de edición
-          if (typeof window !== 'undefined' && !window.location.pathname.includes('/admin')) {
-            window.location.href = '/admin';
-          }
-        }}
-        onNavigate={(action, query) => {
-          if (typeof window !== 'undefined') {
-            switch (action) {
-              case 'home':
-                window.location.href = '/';
-                break;
-              case 'new_post':
-                window.location.href = '/admin';
-                break;
-              case 'view_posts':
-                window.location.href = '/admin/posts';
-                break;
-            }
-          }
-        }}
-        onGenerateContent={(topic, style, length) => {
-          if (typeof window !== 'undefined' && !window.location.pathname.includes('/admin')) {
-            window.location.href = '/admin';
-          }
-        }}
       />
     </header>
   );

@@ -7,6 +7,7 @@ import RichTextEditor from "@/components/RichTextEditor";
 import FileUpload from "@/components/FileUpload";
 import AIGenerator from "@/components/AIGenerator";
 import VoiceButton from "@/components/VoiceButton";
+import ErrorDialog from "@/components/ErrorDialog";
 
 export default function AdminPage() {
   const [title, setTitle] = useState("");
@@ -17,6 +18,7 @@ export default function AdminPage() {
   const [previewMode, setPreviewMode] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   const [editor, setEditor] = useState<any>(null);
+  const [errorDialog, setErrorDialog] = useState<{ isOpen: boolean; message: string }>({ isOpen: false, message: '' });
   const router = useRouter();
 
   useEffect(() => {
@@ -39,11 +41,23 @@ export default function AdminPage() {
 
   const handleFileUpload = async (file: File) => {
     try {
+      // Obtener el token de la sesión
+      const sessionResponse = await fetch('/api/v1/auth/session');
+      if (!sessionResponse.ok) {
+        throw new Error('Sesión expirada');
+      }
+      
+      const sessionData = await sessionResponse.json();
+      const token = sessionData.token;
+
       const formData = new FormData();
       formData.append('file', file);
 
       const response = await fetch('/api/v1/upload', {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
         body: formData,
       });
 
@@ -58,16 +72,25 @@ export default function AdminPage() {
         const imageUrl = `${window.location.origin}${result.url}`;
         if (editor) {
           editor.chain().focus().setImage({ src: imageUrl }).run();
-        } else {
-          alert(`Imagen subida: ${imageUrl}\nPuedes usar esta URL en el editor.`);
-        }
-      } else {
-        alert(`Archivo subido: ${result.fileName}\nURL: ${window.location.origin}${result.url}`);
+              } else {
+        setErrorDialog({ 
+          isOpen: true, 
+          message: `Imagen subida: ${imageUrl}\nPuedes usar esta URL en el editor.` 
+        });
       }
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      alert('Error al subir el archivo');
+    } else {
+      setErrorDialog({ 
+        isOpen: true, 
+        message: `Archivo subido: ${result.fileName}\nURL: ${window.location.origin}${result.url}` 
+      });
     }
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    setErrorDialog({ 
+      isOpen: true, 
+      message: 'Error al subir el archivo. Por favor, intenta de nuevo.' 
+    });
+  }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -98,10 +121,22 @@ export default function AdminPage() {
     }
 
     try {
+      // Obtener el token de la sesión
+      const sessionResponse = await fetch('/api/v1/auth/session');
+      if (!sessionResponse.ok) {
+        setError("Sesión expirada. Por favor, inicia sesión nuevamente.");
+        setLoading(false);
+        return;
+      }
+      
+      const sessionData = await sessionResponse.json();
+      const token = sessionData.token;
+
       const response = await fetch('/api/v1/posts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ title, slug, content }),
       });
@@ -323,6 +358,15 @@ export default function AdminPage() {
         onDictateContent={handleVoiceDictate}
         onNavigate={handleVoiceNavigate}
         onGenerateContent={handleVoiceGenerate}
+      />
+
+      {/* Diálogo de error */}
+      <ErrorDialog
+        isOpen={errorDialog.isOpen}
+        onClose={() => setErrorDialog({ isOpen: false, message: '' })}
+        title="Error"
+        message={errorDialog.message}
+        type="error"
       />
     </main>
   );

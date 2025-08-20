@@ -7,6 +7,57 @@ interface GeneratePostOptions {
   language?: 'es' | 'en';
 }
 
+// URLs de imágenes reales y gratuitas para diferentes categorías
+const REAL_IMAGE_URLS = {
+  technology: [
+    'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=800&h=400&fit=crop',
+    'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&h=400&fit=crop',
+    'https://images.unsplash.com/photo-1518186285589-2f7649de83e0?w=800&h=400&fit=crop',
+    'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=800&h=400&fit=crop'
+  ],
+  health: [
+    'https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?w=800&h=400&fit=crop',
+    'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800&h=400&fit=crop',
+    'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=400&fit=crop',
+    'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800&h=400&fit=crop'
+  ],
+  lifestyle: [
+    'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=800&h=400&fit=crop',
+    'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=800&h=400&fit=crop',
+    'https://images.unsplash.com/photo-1504674900240-9a9049b7c63e?w=800&h=400&fit=crop',
+    'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=800&h=400&fit=crop'
+  ],
+  business: [
+    'https://images.unsplash.com/photo-1556761175-b413da4baf72?w=800&h=400&fit=crop',
+    'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&h=400&fit=crop',
+    'https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=800&h=400&fit=crop',
+    'https://images.unsplash.com/photo-1556761175-4f6aeb0f7043?w=800&h=400&fit=crop'
+  ],
+  general: [
+    'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&h=400&fit=crop',
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=400&fit=crop',
+    'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&h=400&fit=crop',
+    'https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800&h=400&fit=crop'
+  ]
+};
+
+// Función para obtener una imagen aleatoria según el tema
+function getRandomImageForTopic(topic: string): string {
+  const topicLower = topic.toLowerCase();
+  
+  if (topicLower.includes('tecnología') || topicLower.includes('tech') || topicLower.includes('digital') || topicLower.includes('software')) {
+    return REAL_IMAGE_URLS.technology[Math.floor(Math.random() * REAL_IMAGE_URLS.technology.length)];
+  } else if (topicLower.includes('salud') || topicLower.includes('health') || topicLower.includes('medicina') || topicLower.includes('bienestar')) {
+    return REAL_IMAGE_URLS.health[Math.floor(Math.random() * REAL_IMAGE_URLS.health.length)];
+  } else if (topicLower.includes('estilo') || topicLower.includes('lifestyle') || topicLower.includes('vida') || topicLower.includes('personal')) {
+    return REAL_IMAGE_URLS.lifestyle[Math.floor(Math.random() * REAL_IMAGE_URLS.lifestyle.length)];
+  } else if (topicLower.includes('negocio') || topicLower.includes('business') || topicLower.includes('empresa') || topicLower.includes('emprendimiento')) {
+    return REAL_IMAGE_URLS.business[Math.floor(Math.random() * REAL_IMAGE_URLS.business.length)];
+  } else {
+    return REAL_IMAGE_URLS.general[Math.floor(Math.random() * REAL_IMAGE_URLS.general.length)];
+  }
+}
+
 interface GeneratePostResponse {
   title: string;
   content: string;
@@ -22,7 +73,7 @@ export class OpenAIService {
   constructor() {
     this.apiKey = process.env.OPENAI_API_KEY || '';
     if (!this.apiKey) {
-      throw new Error('OPENAI_API_KEY no está configurada');
+      console.warn('⚠️ OPENAI_API_KEY no está configurada - las funcionalidades de IA no estarán disponibles');
     }
   }
 
@@ -45,6 +96,10 @@ export class OpenAIService {
   }
 
   async generatePost(options: GeneratePostOptions): Promise<GeneratePostResponse> {
+    if (!this.apiKey) {
+      throw new Error('OPENAI_API_KEY no está configurada. Por favor, configura la variable de entorno.');
+    }
+
     const {
       topic = 'tecnología y innovación',
       title,
@@ -80,7 +135,7 @@ Requisitos:
 - Incluye una introducción atractiva
 - Desarrolla el contenido con subtítulos y estructura clara
 - Concluye con un resumen o llamada a la acción
-${includeImages ? '- Incluye sugerencias de imágenes con etiquetas HTML img' : ''}
+${includeImages ? '- Incluye 2-3 etiquetas HTML img con URLs de Unsplash relacionadas al tema. Usa URLs como: https://images.unsplash.com/photo-[ID]?w=800&h=400&fit=crop' : '- NO incluyas etiquetas de imagen (img) en el contenido'}
 
 Responde en formato JSON con esta estructura:
 {
@@ -94,13 +149,13 @@ Responde en formato JSON con esta estructura:
 
     try {
       const response = await this.makeRequest('/responses', {
-        model: 'gpt-4o',
+        model: 'gpt-4o', // Modelo más económico para tareas de escritura
         input: prompt,
         temperature: 0.7,
         max_output_tokens: lengthTokens[length] * 2,
         text: {
           format: {
-            type: 'json'
+            type: 'json_object'
           }
         }
       });
@@ -113,9 +168,15 @@ Responde en formato JSON con esta estructura:
       // Parsear el JSON de la respuesta
       const parsed = JSON.parse(content);
       
+      // Procesar el contenido para asegurar que las imágenes sean reales
+      let processedContent = parsed.content;
+      if (includeImages) {
+        processedContent = this.processImagesInContent(processedContent, topic);
+      }
+      
       return {
         title: parsed.title,
-        content: parsed.content,
+        content: processedContent,
         slug: parsed.slug,
         summary: parsed.summary,
         tags: parsed.tags || []
@@ -127,6 +188,10 @@ Responde en formato JSON con esta estructura:
   }
 
   async improveContent(content: string, instructions: string): Promise<string> {
+    if (!this.apiKey) {
+      throw new Error('OPENAI_API_KEY no está configurada. Por favor, configura la variable de entorno.');
+    }
+
     const prompt = `
 Eres un editor experto. Mejora el siguiente contenido de blog según estas instrucciones:
 
@@ -138,13 +203,18 @@ ${content}
 Mejora el contenido manteniendo el formato HTML y responde solo con el contenido mejorado.
 `;
 
-    try {
-      const response = await this.makeRequest('/responses', {
-        model: 'gpt-4o',
-        input: prompt,
-        temperature: 0.3,
-        max_output_tokens: 4000
-      });
+         try {
+       const response = await this.makeRequest('/responses', {
+         model: 'gpt-4o', // Modelo más económico
+         input: prompt,
+         temperature: 0.3,
+         max_output_tokens: 4000,
+         text: {
+           format: {
+             type: 'text'
+           }
+         }
+       });
 
       return response.output[0]?.content[0]?.text || content;
     } catch (error) {
@@ -154,17 +224,26 @@ Mejora el contenido manteniendo el formato HTML y responde solo con el contenido
   }
 
   async generateTitle(topic: string, content?: string): Promise<string> {
+    if (!this.apiKey) {
+      throw new Error('OPENAI_API_KEY no está configurada. Por favor, configura la variable de entorno.');
+    }
+
     const prompt = content 
       ? `Genera un título atractivo y SEO-friendly para este contenido sobre ${topic}:\n\n${content.substring(0, 500)}...`
       : `Genera 5 títulos atractivos y SEO-friendly para un blog sobre ${topic}. Responde solo con los títulos, uno por línea.`;
 
-    try {
-      const response = await this.makeRequest('/responses', {
-        model: 'gpt-4o',
-        input: prompt,
-        temperature: 0.8,
-        max_output_tokens: 200
-      });
+         try {
+       const response = await this.makeRequest('/responses', {
+         model: 'gpt-4o', // Modelo más económico
+         input: prompt,
+         temperature: 0.8,
+         max_output_tokens: 200,
+         text: {
+           format: {
+             type: 'text'
+           }
+         }
+       });
 
       const titles = response.output[0]?.content[0]?.text || '';
       return content ? titles.trim() : titles.split('\n')[0]?.trim() || 'Nuevo Post';
@@ -175,15 +254,24 @@ Mejora el contenido manteniendo el formato HTML y responde solo con el contenido
   }
 
   async generateSlug(title: string): Promise<string> {
+    if (!this.apiKey) {
+      throw new Error('OPENAI_API_KEY no está configurada. Por favor, configura la variable de entorno.');
+    }
+
     const prompt = `Convierte este título en un slug URL-friendly (solo letras minúsculas, números y guiones): "${title}"`;
 
-    try {
-      const response = await this.makeRequest('/responses', {
-        model: 'gpt-4o',
-        input: prompt,
-        temperature: 0.1,
-        max_output_tokens: 100
-      });
+         try {
+       const response = await this.makeRequest('/responses', {
+         model: 'gpt-4o', // Modelo más económico
+         input: prompt,
+         temperature: 0.1,
+         max_output_tokens: 100,
+         text: {
+           format: {
+             type: 'text'
+           }
+         }
+       });
 
       const slug = response.output[0]?.content[0]?.text || '';
       return slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
@@ -191,6 +279,33 @@ Mejora el contenido manteniendo el formato HTML y responde solo con el contenido
       console.error('Error generando slug:', error);
       return title.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     }
+  }
+
+  // Método para procesar y reemplazar imágenes en el contenido
+  private processImagesInContent(content: string, topic: string): string {
+    // Reemplazar URLs de placeholder con URLs reales
+    let processedContent = content.replace(
+      /https:\/\/via\.placeholder\.com\/[^"'\s]+/g,
+      getRandomImageForTopic(topic)
+    );
+
+    // Si no hay imágenes en el contenido, agregar una al principio
+    if (!processedContent.includes('<img')) {
+      const imageUrl = getRandomImageForTopic(topic);
+      const imageTag = `<img src="${imageUrl}" alt="Imagen relacionada al tema" class="rounded-lg shadow-md my-6 max-w-full h-auto" />`;
+      
+      // Insertar después del primer h1 o al principio si no hay h1
+      if (processedContent.includes('<h1>')) {
+        processedContent = processedContent.replace(
+          /(<h1>.*?<\/h1>)/s,
+          `$1\n${imageTag}`
+        );
+      } else {
+        processedContent = imageTag + '\n' + processedContent;
+      }
+    }
+
+    return processedContent;
   }
 }
 

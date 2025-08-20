@@ -3,6 +3,7 @@ import "./globals.css";
 import Providers from "./providers";
 import SiteHeader from "@/components/SiteHeader";
 import Footer from "@/components/Footer";
+import DialogProvider from "@/components/DialogProvider";
 
 export const metadata: Metadata = {
   title: "datqbox — Blog",
@@ -14,9 +15,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" suppressHydrationWarning>
       <body>
         <Providers>
-          <SiteHeader />
-          <div className="container">{children}</div>
-          <Footer />
+          <DialogProvider>
+            <SiteHeader />
+            <div className="container">{children}</div>
+            <Footer />
+          </DialogProvider>
         </Providers>
       </body>
     </html>

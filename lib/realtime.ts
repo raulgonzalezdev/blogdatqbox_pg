@@ -19,12 +19,16 @@ export class RealtimeService {
   constructor() {
     this.apiKey = process.env.OPENAI_API_KEY || '';
     if (!this.apiKey) {
-      throw new Error('OPENAI_API_KEY no está configurada');
+      console.warn('⚠️ OPENAI_API_KEY no está configurada - las funcionalidades de voz no estarán disponibles');
     }
   }
 
   // Crear sesión para obtener token efímero
   async createSession(model: string = 'gpt-4o-realtime-preview-2025-06-03'): Promise<RealtimeSession> {
+    if (!this.apiKey) {
+      throw new Error('OPENAI_API_KEY no está configurada. Por favor, configura la variable de entorno.');
+    }
+
     try {
       const response = await fetch(`${this.baseUrl}/realtime/sessions`, {
         method: 'POST',

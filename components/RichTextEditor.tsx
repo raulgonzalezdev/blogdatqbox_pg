@@ -194,6 +194,13 @@ export default function RichTextEditor({ content, onChange, placeholder = "Escri
     }
   }, [editor, onEditorReady]);
 
+  // Sincronizar contenido externo con el editor
+  React.useEffect(() => {
+    if (editor && content !== editor.getHTML()) {
+      editor.commands.setContent(content);
+    }
+  }, [content, editor]);
+
   return (
     <div className="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
       <MenuBar editor={editor} />

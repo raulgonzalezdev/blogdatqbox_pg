@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Edit, Trash2, Eye, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import VoiceButton from "@/components/VoiceButton";
+import { useDialogContext } from "@/components/DialogProvider";
 
 interface Post {
   id: number;
@@ -18,6 +20,7 @@ export default function PostsPage() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   const router = useRouter();
+  const { confirm, alert } = useDialogContext();
 
   useEffect(() => {
     checkAuthStatus();
@@ -53,9 +56,15 @@ export default function PostsPage() {
   };
 
   const handleDelete = async (postId: number, slug: string) => {
-    if (!confirm("¿Estás seguro de que quieres eliminar este post?")) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Confirmar eliminación',
+      message: '¿Estás seguro de que quieres eliminar este post? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      type: 'danger'
+    });
+
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`/api/v1/posts/${slug}`, {
@@ -65,10 +74,18 @@ export default function PostsPage() {
       if (response.ok) {
         setPosts(posts.filter(post => post.id !== postId));
       } else {
-        alert("Error eliminando el post");
+        alert({
+          title: 'Error',
+          message: 'Error eliminando el post. Por favor, intenta de nuevo.',
+          type: 'error'
+        });
       }
     } catch (error) {
-      alert("Error de conexión");
+      alert({
+        title: 'Error',
+        message: 'Error de conexión al eliminar el post.',
+        type: 'error'
+      });
     }
   };
 
@@ -79,6 +96,33 @@ export default function PostsPage() {
     } catch (error) {
       console.error('Error logging out:', error);
     }
+  };
+
+  const handleVoiceDictate = (content: string, type: 'title' | 'body' | 'summary') => {
+    // Redirigir a crear nuevo post si se dicta contenido
+    router.push('/admin');
+  };
+
+  const handleVoiceNavigate = (action: string, query?: string) => {
+    switch (action) {
+      case 'home':
+        router.push('/');
+        break;
+      case 'new_post':
+        router.push('/admin');
+        break;
+      case 'view_posts':
+        router.push('/admin/posts');
+        break;
+      case 'search':
+        // Implementar búsqueda si es necesario
+        break;
+    }
+  };
+
+  const handleVoiceGenerate = (topic: string, style: string, length: string) => {
+    // Redirigir a crear nuevo post para generar contenido
+    router.push('/admin');
   };
 
   if (!user) {
@@ -198,6 +242,13 @@ export default function PostsPage() {
           )}
         </div>
       )}
+
+      {/* Asistente de voz */}
+      <VoiceButton
+        onDictateContent={handleVoiceDictate}
+        onNavigate={handleVoiceNavigate}
+        onGenerateContent={handleVoiceGenerate}
+      />
     </main>
   );
 }
