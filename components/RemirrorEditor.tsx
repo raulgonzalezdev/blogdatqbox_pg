@@ -50,7 +50,6 @@ const Toolbar = () => {
       <button
         onClick={() => chain.toggleBold().focus().run()}
         className={`p-2 rounded ${active.bold() ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-        disabled={!chain.toggleBold().enabled()}
       >
         <strong>B</strong>
       </button>
@@ -58,7 +57,6 @@ const Toolbar = () => {
       <button
         onClick={() => chain.toggleItalic().focus().run()}
         className={`p-2 rounded ${active.italic() ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-        disabled={!chain.toggleItalic().enabled()}
       >
         <em>I</em>
       </button>
@@ -66,7 +64,6 @@ const Toolbar = () => {
       <button
         onClick={() => chain.toggleUnderline().focus().run()}
         className={`p-2 rounded ${active.underline() ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-        disabled={!chain.toggleUnderline().enabled()}
       >
         <u>U</u>
       </button>
@@ -76,7 +73,6 @@ const Toolbar = () => {
       <button
         onClick={() => chain.toggleHeading({ level: 1 }).focus().run()}
         className={`p-2 rounded ${active.heading({ level: 1 }) ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-        disabled={!chain.toggleHeading({ level: 1 }).enabled()}
       >
         H1
       </button>
@@ -84,7 +80,6 @@ const Toolbar = () => {
       <button
         onClick={() => chain.toggleHeading({ level: 2 }).focus().run()}
         className={`p-2 rounded ${active.heading({ level: 2 }) ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-        disabled={!chain.toggleHeading({ level: 2 }).enabled()}
       >
         H2
       </button>
@@ -94,7 +89,6 @@ const Toolbar = () => {
       <button
         onClick={() => chain.toggleBulletList().focus().run()}
         className={`p-2 rounded ${active.bulletList() ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-        disabled={!chain.toggleBulletList().enabled()}
       >
         • Lista
       </button>
@@ -102,7 +96,6 @@ const Toolbar = () => {
       <button
         onClick={() => chain.toggleOrderedList().focus().run()}
         className={`p-2 rounded ${active.orderedList() ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-        disabled={!chain.toggleOrderedList().enabled()}
       >
         1. Lista
       </button>
@@ -112,7 +105,6 @@ const Toolbar = () => {
       <button
         onClick={() => chain.toggleBlockquote().focus().run()}
         className={`p-2 rounded ${active.blockquote() ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-        disabled={!chain.toggleBlockquote().enabled()}
       >
         Quote
       </button>
@@ -120,7 +112,6 @@ const Toolbar = () => {
       <button
         onClick={() => chain.toggleCodeBlock().focus().run()}
         className={`p-2 rounded ${active.codeBlock() ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-        disabled={!chain.toggleCodeBlock().enabled()}
       >
         Code
       </button>
@@ -146,11 +137,49 @@ const Toolbar = () => {
   );
 };
 
-// Componente interno que maneja los hooks
-const RemirrorEditorInternal = ({ content, onChange, onEditorReady }: {
+// Componente que maneja los hooks dentro del contexto
+const EditorContent = React.memo(({ onEditorReady }: { onEditorReady?: (editor: any) => void }) => {
+  const { getHTML } = useHelpers();
+
+  React.useEffect(() => {
+    if (onEditorReady) {
+      const editorInterface = {
+        getHTML: async () => {
+          return getHTML();
+        },
+        save: async () => {
+          return getHTML();
+        },
+        destroy: () => {
+          // Cleanup si es necesario
+        }
+      };
+      onEditorReady(editorInterface);
+    }
+  }, [onEditorReady, getHTML]);
+
+  return (
+    <>
+      <Toolbar />
+      <div className="p-4 min-h-[300px]">
+        <EditorComponent />
+      </div>
+    </>
+  );
+});
+
+interface RemirrorEditorProps {
   content: string;
   onChange: (content: string) => void;
+  placeholder?: string;
   onEditorReady?: (editor: any) => void;
+}
+
+const RemirrorEditor: React.FC<RemirrorEditorProps> = ({ 
+  content, 
+  onChange, 
+  placeholder = "Escribe tu contenido aquí...",
+  onEditorReady 
 }) => {
   const { manager, state } = useRemirror({
     extensions: () => [
@@ -173,101 +202,24 @@ const RemirrorEditorInternal = ({ content, onChange, onEditorReady }: {
     selection: 'end',
   });
 
-  const { getHTML } = useHelpers();
 
-  React.useEffect(() => {
-    if (onEditorReady) {
-      const editorInterface = {
-        getHTML: async () => {
-          return getHTML();
-        },
-        save: async () => {
-          return getHTML();
-        },
-        destroy: () => {
-          // Cleanup si es necesario
-        }
-      };
-      onEditorReady(editorInterface);
-    }
-  }, [onEditorReady, getHTML]);
 
-  // Efecto para actualizar el contenido cuando cambia la prop content
-  React.useEffect(() => {
-    if (manager && content) {
-      console.log('🔄 Updating Remirror content:', content);
-      try {
-        // Usar el manager para actualizar el contenido con HTML
-        manager.store.update((state) => {
-          // Crear un nuevo estado con el contenido HTML
-          const newState = state.apply(state.tr.replaceWith(
-            0,
-            state.doc.content.size,
-            manager.schema.node('doc', {}, manager.schema.text(content))
-          ));
-          return newState;
-        });
-      } catch (error) {
-        console.error('❌ Error updating Remirror content:', error);
-        // Fallback: intentar con contenido simple
-        try {
-          manager.store.update((state) => {
-            const newState = state.apply(state.tr.replaceWith(
-              0,
-              state.doc.content.size,
-              manager.schema.node('doc', {}, manager.schema.text(content))
-            ));
-            return newState;
-          });
-        } catch (fallbackError) {
-          console.error('❌ Fallback error updating Remirror content:', fallbackError);
-        }
-      }
-    }
-  }, [content, manager]);
-
-  // Hook para manejar cambios
-  const handleChange = React.useCallback(({ state }: any) => {
-    const html = getHTML();
-    console.log('🔄 Remirror content changed:', html);
-    onChange(html);
-  }, [onChange, getHTML]);
-
-  return (
-    <Remirror 
-      manager={manager} 
-      initialContent={state}
-      onChange={handleChange}
-    >
-      <Toolbar />
-      <div className="p-4 min-h-[300px]">
-        <EditorComponent />
-      </div>
-    </Remirror>
-  );
-};
-
-interface RemirrorEditorProps {
-  content: string;
-  onChange: (content: string) => void;
-  placeholder?: string;
-  onEditorReady?: (editor: any) => void;
-}
-
-const RemirrorEditor: React.FC<RemirrorEditorProps> = ({ 
-  content, 
-  onChange, 
-  placeholder = "Escribe tu contenido aquí...",
-  onEditorReady 
-}) => {
   return (
     <div className="border border-gray-300 dark:border-gray-700 rounded-lg">
       <div className="remirror-theme">
-        <RemirrorEditorInternal
-          content={content}
-          onChange={onChange}
-          onEditorReady={onEditorReady}
-        />
+        <Remirror 
+          manager={manager} 
+          initialContent={state}
+          onChange={({ state }) => {
+            // Este onChange se ejecuta cuando el contenido cambia
+            console.log('🔄 Remirror onChange triggered');
+            // Llamar al onChange del componente padre con HTML
+            const html = state.doc.textContent;
+            onChange(html);
+          }}
+        >
+          <EditorContent onEditorReady={onEditorReady} />
+        </Remirror>
       </div>
     </div>
   );
