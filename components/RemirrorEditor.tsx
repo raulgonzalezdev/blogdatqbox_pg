@@ -47,42 +47,57 @@ const Toolbar = () => {
 
   return (
     <div className="border-b border-gray-300 dark:border-gray-700 p-2 flex flex-wrap gap-1">
-      <button
-        onClick={() => chain.toggleBold().focus().run()}
-        className={`p-2 rounded ${active.bold() ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-      >
-        <strong>B</strong>
-      </button>
-      
-      <button
-        onClick={() => chain.toggleItalic().focus().run()}
-        className={`p-2 rounded ${active.italic() ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-      >
-        <em>I</em>
-      </button>
-      
-      <button
-        onClick={() => chain.toggleUnderline().focus().run()}
-        className={`p-2 rounded ${active.underline() ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-      >
-        <u>U</u>
-      </button>
+             <button
+         onClick={() => chain.toggleBold().focus().run()}
+         className={`p-2 rounded ${
+           // @ts-ignore
+           active.bold() ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+         }`}
+       >
+         <strong>B</strong>
+       </button>
+       
+       <button
+         onClick={() => chain.toggleItalic().focus().run()}
+         className={`p-2 rounded ${
+           // @ts-ignore
+           active.italic() ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+         }`}
+       >
+         <em>I</em>
+       </button>
+       
+       <button
+         onClick={() => chain.toggleUnderline().focus().run()}
+         className={`p-2 rounded ${
+           // @ts-ignore
+           active.underline() ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+         }`}
+       >
+         <u>U</u>
+       </button>
       
       <div className="w-px bg-gray-300 dark:bg-gray-700 mx-1"></div>
       
-      <button
-        onClick={() => chain.toggleHeading({ level: 1 }).focus().run()}
-        className={`p-2 rounded ${active.heading({ level: 1 }) ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-      >
-        H1
-      </button>
-      
-      <button
-        onClick={() => chain.toggleHeading({ level: 2 }).focus().run()}
-        className={`p-2 rounded ${active.heading({ level: 2 }) ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-      >
-        H2
-      </button>
+             <button
+         onClick={() => chain.toggleHeading({ level: 1 }).focus().run()}
+         className={`p-2 rounded ${
+           // @ts-ignore
+           active.heading() ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+         }`}
+       >
+         H1
+       </button>
+       
+       <button
+         onClick={() => chain.toggleHeading({ level: 2 }).focus().run()}
+         className={`p-2 rounded ${
+           // @ts-ignore
+           active.heading() ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+         }`}
+       >
+         H2
+       </button>
       
       <div className="w-px bg-gray-300 dark:bg-gray-700 mx-1"></div>
       
@@ -138,7 +153,7 @@ const Toolbar = () => {
 };
 
 // Componente que maneja los hooks dentro del contexto
-const EditorContent = React.memo(({ onEditorReady }: { onEditorReady?: (editor: any) => void }) => {
+const EditorContent = React.memo(({ onEditorReady, onChange }: { onEditorReady?: (editor: any) => void; onChange: (content: string) => void }) => {
   const { getHTML } = useHelpers();
 
   React.useEffect(() => {
@@ -158,6 +173,19 @@ const EditorContent = React.memo(({ onEditorReady }: { onEditorReady?: (editor: 
     }
   }, [onEditorReady, getHTML]);
 
+  // Detectar cambios en el contenido y llamar onChange
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      const currentHTML = getHTML();
+      if (currentHTML && currentHTML !== '<p></p>') {
+        console.log('🔄 Content changed, calling onChange with:', currentHTML);
+        onChange(currentHTML);
+      }
+    }, 1000); // Verificar cada segundo
+
+    return () => clearInterval(interval);
+  }, [getHTML, onChange]);
+
   return (
     <>
       <Toolbar />
@@ -167,6 +195,8 @@ const EditorContent = React.memo(({ onEditorReady }: { onEditorReady?: (editor: 
     </>
   );
 });
+
+EditorContent.displayName = 'EditorContent';
 
 interface RemirrorEditorProps {
   content: string;
@@ -208,12 +238,7 @@ const RemirrorEditor: React.FC<RemirrorEditorProps> = ({
   React.useEffect(() => {
     if (content && manager) {
       console.log('🔄 Updating Remirror content from prop:', content);
-      try {
-        // Remirror se actualiza automáticamente cuando cambia el content prop
-        // No necesitamos actualizar manualmente
-      } catch (error) {
-        console.error('❌ Error updating Remirror content:', error);
-      }
+      // El key en el componente Remirror forzará el re-render
     }
   }, [content, manager]);
 
@@ -221,6 +246,7 @@ const RemirrorEditor: React.FC<RemirrorEditorProps> = ({
     <div className="border border-gray-300 dark:border-gray-700 rounded-lg">
       <div className="remirror-theme">
         <Remirror 
+          key={content ? `content-${content.length}` : 'empty'} // Forzar re-render cuando cambia el contenido
           manager={manager} 
           initialContent={state}
           onChange={({ state }) => {
