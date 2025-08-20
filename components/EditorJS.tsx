@@ -42,7 +42,7 @@ interface EditorJSProps {
   content?: any;
   onChange?: (content: any) => void;
   placeholder?: string;
-  onEditorReady?: (editor: EditorJS) => void;
+  onEditorReady?: (editor: any) => void;
 }
 
 export default function EditorJSComponent({ 
@@ -51,12 +51,14 @@ export default function EditorJSComponent({
   placeholder = "Escribe tu contenido aquí...",
   onEditorReady 
 }: EditorJSProps) {
+  // console.log('📝 EditorJS Component received content:', content);
   const editorRef = useRef<EditorJS | null>(null);
   const holderRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
 
   useEffect(() => {
+    console.log('🔄 useEffect triggered - initializing editor');
     if (!holderRef.current || isInitializing) return;
 
     setIsInitializing(true);
@@ -71,6 +73,8 @@ export default function EditorJSComponent({
       editorRef.current = null;
     }
 
+    // console.log('🔧 Initializing editor with content:', content);
+    
     // Configuración inicial del editor
     const editor = new EditorJS({
       holder: holderRef.current,
@@ -150,45 +154,76 @@ export default function EditorJSComponent({
         },
       },
 
-      data: content || {
-        blocks: [
-          {
-            type: "header",
-            data: {
-              text: "Bienvenido al Editor",
-              level: 2
-            }
-          },
-          {
-            type: "paragraph",
-            data: {
-              text: "Este es un editor estilo Notion con bloques separados. Puedes usar los atajos de teclado o hacer clic en el botón + para agregar nuevos bloques."
-            }
-          },
-          {
-            type: "list",
-            data: {
-              items: [
-                'Bloques de texto',
-                'Encabezados',
-                'Listas',
-                'Imágenes',
-                'Citas',
-                'Código'
-              ],
-              style: 'unordered'
-            }
-          }
-        ]
+      data: content && content.blocks && content.blocks.length > 0 ? content : {
+        blocks: []
       },
 
-      onReady: () => {
-        console.log('Editor.js ready');
-        setIsReady(true);
-        if (onEditorReady) {
-          onEditorReady(editor);
-        }
-      },
+                     onReady: () => {
+          console.log('✅ Editor.js ready - setting isReady to true');
+          setIsReady(true);
+          // Asegurar que el editor esté asignado antes de llamar onEditorReady
+          editorRef.current = editor;
+          console.log('✅ Editor assigned in onReady:', editorRef.current);
+          if (onEditorReady) {
+                         // Crear un objeto con los métodos necesarios
+             const editorWithMethods = {
+               ...editor,
+               getHTML: async () => {
+                 console.log('🔍 getHTML called from handleSubmit');
+                 
+                 // Usar una función que siempre busque el editor actual
+                 const getCurrentEditor = () => {
+                   // Primero intentar con editorRef.current
+                   if (editorRef.current && typeof editorRef.current.save === 'function') {
+                     return editorRef.current;
+                   }
+                   // Si no está disponible, intentar con el editor del closure
+                   if (editor && typeof editor.save === 'function') {
+                     return editor;
+                   }
+                   return null;
+                 };
+                 
+                 const currentEditor = getCurrentEditor();
+                 console.log('🔍 Current editor state:', {
+                   hasEditor: !!currentEditor,
+                   editorType: typeof currentEditor,
+                   hasSaveMethod: currentEditor ? typeof currentEditor.save === 'function' : false
+                 });
+                 
+                                   if (currentEditor) {
+                    try {
+                      const data = await currentEditor.save();
+                      console.log('📄 Editor data to convert:', data);
+                      
+                      // Log específico para bloques de imagen
+                      if (data.blocks) {
+                        console.log('🔍 Total blocks found:', data.blocks.length);
+                        data.blocks.forEach((block: any, index: number) => {
+                          console.log(`🔍 Block ${index}:`, { type: block.type, data: block.data });
+                          if (block.type === 'image') {
+                            console.log(`🖼️ Image block ${index}:`, block);
+                            console.log(`🖼️ Image URL:`, block.data?.url || block.data?.file?.url);
+                          }
+                        });
+                      }
+                      
+                      const html = editorJSBlocksToHTML(data);
+                      console.log('🔄 Converted to HTML:', html);
+                      return html;
+                    } catch (error) {
+                      console.error('❌ Error getting HTML:', error);
+                      return '';
+                    }
+                  }
+                 console.log('❌ No editor available for getHTML');
+                 return '';
+               }
+             };
+            console.log('✅ Calling onEditorReady with editorWithMethods');
+            onEditorReady(editorWithMethods);
+          }
+        },
 
       onChange: async (api, event) => {
         if (onChange) {
@@ -202,12 +237,9 @@ export default function EditorJSComponent({
       }
     });
 
-    // Verificar que el editor se creó correctamente
-    if (editor && typeof editor.save === 'function') {
-      editorRef.current = editor;
-    } else {
-      console.error('Editor.js no se inicializó correctamente');
-    }
+    // Asignar el editor inmediatamente
+    editorRef.current = editor;
+    // console.log('✅ Editor assigned to ref immediately:', editorRef.current);
 
     setIsInitializing(false);
 
@@ -221,19 +253,55 @@ export default function EditorJSComponent({
         editorRef.current = null;
       }
     };
-  }, []);
+     }, [placeholder]);
+
+  // Efecto separado para actualizar el contenido cuando cambie el prop content
+  useEffect(() => {
+    // Solo ejecutar si hay contenido y el editor está listo
+    if (!content || !isReady || !editorRef.current) {
+      return;
+    }
+
+    // console.log('🔄 useEffect content changed:', { 
+    //   content: content?.blocks?.length || 0, 
+    //   isReady, 
+    //   hasEditor: !!editorRef.current
+    // });
+    
+    if (typeof editorRef.current.render === 'function') {
+      // console.log('✅ Rendering content to editor:', content);
+      try {
+        editorRef.current.render(content);
+        // console.log('✅ Content rendered successfully');
+      } catch (error) {
+        console.error('❌ Error rendering content:', error);
+      }
+    }
+  }, [content, isReady]);
 
   // Función para obtener el contenido como HTML
   const getHTML = async () => {
+    console.log('🔍 getHTML called');
+    console.log('🔍 Editor ref state:', {
+      hasEditor: !!editorRef.current,
+      editorType: typeof editorRef.current,
+      editorKeys: editorRef.current ? Object.keys(editorRef.current) : 'null',
+      hasSaveMethod: editorRef.current ? typeof editorRef.current.save === 'function' : false
+    });
+    
     if (editorRef.current && typeof editorRef.current.save === 'function') {
       try {
         const data = await editorRef.current.save();
-        return editorJSBlocksToHTML(data);
+        console.log('📄 Editor data to convert:', data);
+        const html = editorJSBlocksToHTML(data);
+        console.log('🔄 Converted to HTML:', html);
+        return html;
       } catch (error) {
-        console.error('Error getting HTML:', error);
+        console.error('❌ Error getting HTML:', error);
         return '';
       }
     }
+    console.log('❌ No editor available for getHTML');
     return '';
   };
 
@@ -299,43 +367,7 @@ export default function EditorJSComponent({
     input.click();
   };
 
-  // Exponer métodos útiles
-  React.useImperativeHandle(React.forwardRef(() => null), () => ({
-    getHTML,
-    save: () => {
-      if (editorRef.current && typeof editorRef.current.save === 'function') {
-        return editorRef.current.save();
-      }
-      return Promise.resolve({ blocks: [] });
-    },
-    clear: () => {
-      if (editorRef.current && typeof editorRef.current.clear === 'function') {
-        return editorRef.current.clear();
-      }
-    },
-    render: (data: any) => {
-      if (editorRef.current && typeof editorRef.current.render === 'function') {
-        return editorRef.current.render(data);
-      }
-    },
-    readOnly: {
-      toggle: () => {
-        if (editorRef.current?.readOnly && typeof editorRef.current.readOnly.toggle === 'function') {
-          return editorRef.current.readOnly.toggle();
-        }
-      },
-      enable: () => {
-        if (editorRef.current?.readOnly && typeof editorRef.current.readOnly.enable === 'function') {
-          return editorRef.current.readOnly.enable();
-        }
-      },
-      disable: () => {
-        if (editorRef.current?.readOnly && typeof editorRef.current.readOnly.disable === 'function') {
-          return editorRef.current.readOnly.disable();
-        }
-      },
-    }
-  }));
+  // Eliminado useImperativeHandle - no lo necesitamos
 
   return (
     <div className="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">

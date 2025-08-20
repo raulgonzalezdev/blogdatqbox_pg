@@ -18,6 +18,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Token inválido" }, { status: 401 });
     }
 
+    // Verificar si es una solicitud de URL o archivo
+    const contentType = request.headers.get("content-type");
+    
+    if (contentType?.includes("application/json")) {
+      // Es una solicitud de URL
+      const body = await request.json();
+      const { url } = body;
+      
+      if (!url) {
+        return NextResponse.json({ error: "No se proporcionó URL" }, { status: 400 });
+      }
+
+      // Validar que sea una URL de imagen válida
+      try {
+        new URL(url);
+      } catch {
+        return NextResponse.json({ error: "URL inválida" }, { status: 400 });
+      }
+
+      return NextResponse.json({ 
+        success: true, 
+        url: url,
+        fileName: "external_image",
+        size: 0,
+        type: "image/external"
+      });
+    }
+
+    // Es una solicitud de archivo
     const formData = await request.formData();
     const file = formData.get("file") as File;
 

@@ -1,9 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Save, Eye, ArrowLeft, Trash2 } from "lucide-react";
 import EditorJSComponent from "@/components/EditorJS";
-import { htmlToEditorJSBlocks } from "@/lib/editor-converter";
+import { htmlToEditorJSBlocks, editorJSBlocksToHTML } from "@/lib/editor-converter";
 import FileUpload from "@/components/FileUpload";
 import AIGenerator from "@/components/AIGenerator";
 import VoiceButton from "@/components/VoiceButton";
@@ -120,12 +120,31 @@ export default function EditPostPage() {
     }
 
     try {
+      // Obtener el contenido HTML del editor
+      let htmlContent = '';
+      if (editor && typeof editor.getHTML === 'function') {
+        try {
+          htmlContent = await editor.getHTML();
+          console.log('📄 HTML content for submission:', htmlContent);
+        } catch (error) {
+          console.error('❌ Error getting HTML from editor:', error);
+          setError("Error obteniendo el contenido del editor");
+          setLoading(false);
+          return;
+        }
+      } else {
+        console.error('❌ Editor not available for getHTML');
+        setError("Editor no disponible");
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch(`/api/v1/posts/${postId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ title, slug, content: await editor.getHTML() }),
+        body: JSON.stringify({ title, slug, content: htmlContent }),
       });
 
       if (response.ok) {
@@ -309,14 +328,16 @@ export default function EditPostPage() {
             
             {previewMode ? (
               <div className="border border-gray-300 dark:border-gray-700 rounded-lg p-4 min-h-[300px] prose max-w-none">
-                <div dangerouslySetInnerHTML={{ __html: content }} />
+                <div dangerouslySetInnerHTML={{ __html: editorJSBlocksToHTML(content) }} />
               </div>
             ) : (
               <EditorJSComponent
                 content={content}
                 onChange={setContent}
                 placeholder="Escribe tu contenido aquí..."
-                onEditorReady={setEditor}
+                onEditorReady={useCallback((editorInstance: any) => {
+                  setEditor(editorInstance);
+                }, [])}
               />
             )}
           </div>

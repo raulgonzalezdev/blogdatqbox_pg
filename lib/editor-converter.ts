@@ -1,7 +1,12 @@
 // Utilidades para convertir entre HTML y Editor.js blocks
 
 export function htmlToEditorJSBlocks(html: string) {
-  if (!html) return { blocks: [] };
+  console.log('🔄 Converting HTML to Editor.js blocks:', html);
+  
+  if (!html) {
+    console.log('❌ No HTML provided, returning empty blocks');
+    return { blocks: [] };
+  }
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
@@ -55,6 +60,7 @@ export function htmlToEditorJSBlocks(html: string) {
         case 'ul':
         case 'ol':
           const items = Array.from(element.children).map(li => li.textContent || '');
+          // console.log('📋 Converting HTML list to Editor.js block:', { tagName, items });
           blocks.push({
             type: 'list',
             data: {
@@ -91,11 +97,14 @@ export function htmlToEditorJSBlocks(html: string) {
           break;
 
         case 'img':
+          const imgSrc = element.getAttribute('src') || '';
+          const imgAlt = element.getAttribute('alt') || '';
+          console.log('🖼️ Converting HTML img to Editor.js block:', { src: imgSrc, alt: imgAlt });
           blocks.push({
             type: 'image',
             data: {
-              url: element.getAttribute('src') || '',
-              caption: element.getAttribute('alt') || ''
+              url: imgSrc,
+              caption: imgAlt
             }
           });
           break;
@@ -124,7 +133,9 @@ export function htmlToEditorJSBlocks(html: string) {
     blocks.push(...processNode(node));
   }
 
-  return { blocks };
+  const result = { blocks };
+  console.log('✅ Conversion result:', result);
+  return result;
 }
 
 export function editorJSBlocksToHTML(data: any): string {
@@ -140,8 +151,16 @@ export function editorJSBlocksToHTML(data: any): string {
         return `<p>${block.data.text}</p>`;
       
       case 'list':
+        // console.log('📋 Processing list block:', block);
+        // console.log('📋 List items:', block.data.items);
         const listType = block.data.style === 'ordered' ? 'ol' : 'ul';
-        const items = block.data.items.map((item: string) => `<li>${item}</li>`).join('');
+        const items = block.data.items.map((item: any, index: number) => {
+          // console.log(`📋 Item ${index}:`, item, 'Type:', typeof item);
+          // Manejar tanto strings como objetos
+          const itemText = typeof item === 'string' ? item : item.text || item.content || '';
+          // console.log(`📋 Item ${index} text:`, itemText);
+          return `<li>${itemText}</li>`;
+        }).join('');
         return `<${listType}>${items}</${listType}>`;
       
       case 'checklist':
@@ -163,7 +182,12 @@ export function editorJSBlocksToHTML(data: any): string {
         return '<hr>';
       
       case 'image':
-        return `<img src="${block.data.url}" alt="${block.data.caption || ''}" class="rounded-lg shadow-md my-6 max-w-full h-auto">`;
+        console.log('🖼️ Processing image block:', block);
+        console.log('🖼️ Image data:', block.data);
+        const imageUrl = block.data.url || block.data.file?.url || '';
+        const imageCaption = block.data.caption || block.data.alt || '';
+        console.log('🖼️ Final image URL:', imageUrl);
+        return `<img src="${imageUrl}" alt="${imageCaption}" class="rounded-lg shadow-md my-6 max-w-full h-auto">`;
       
       case 'table':
         const tableContent = block.data.content.map((row: string[]) => 

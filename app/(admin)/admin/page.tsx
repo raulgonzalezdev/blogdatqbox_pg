@@ -1,10 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Save, Eye, ArrowLeft, Code } from "lucide-react";
 import EditorJSComponent from "@/components/EditorJS";
-import { htmlToEditorJSBlocks } from "@/lib/editor-converter";
+import { htmlToEditorJSBlocks, editorJSBlocksToHTML } from "@/lib/editor-converter";
 import FileUpload from "@/components/FileUpload";
 import AIGenerator from "@/components/AIGenerator";
 import VoiceButton from "@/components/VoiceButton";
@@ -19,6 +19,12 @@ export default function AdminPage() {
   const [previewMode, setPreviewMode] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   const [editor, setEditor] = useState<any>(null);
+  
+  const setEditorWithLog = useCallback((editorInstance: any) => {
+    console.log('🎯 Editor set in admin page:', editorInstance);
+    console.log('🎯 Editor methods available:', editorInstance ? Object.getOwnPropertyNames(Object.getPrototypeOf(editorInstance)) : 'null');
+    setEditor(editorInstance);
+  }, []);
   const [errorDialog, setErrorDialog] = useState<{ isOpen: boolean; message: string }>({ isOpen: false, message: '' });
   const router = useRouter();
 
@@ -133,13 +139,48 @@ export default function AdminPage() {
       const sessionData = await sessionResponse.json();
       const token = sessionData.token;
 
+      // Obtener el contenido HTML del editor
+      let htmlContent = '';
+      console.log('🔍 handleSubmit - Editor state:', {
+        hasEditor: !!editor,
+        editorType: typeof editor,
+        hasGetHTML: editor ? typeof editor.getHTML === 'function' : false,
+        editorKeys: editor ? Object.keys(editor) : 'null',
+        editorMethods: editor ? Object.getOwnPropertyNames(Object.getPrototypeOf(editor)) : 'null'
+      });
+      
+      if (editor && typeof editor.getHTML === 'function') {
+        try {
+          console.log('🔍 About to call editor.getHTML()');
+          htmlContent = await editor.getHTML();
+          console.log('📄 HTML content for submission:', htmlContent);
+          console.log('📄 HTML content length:', htmlContent.length);
+        } catch (error) {
+          console.error('❌ Error getting HTML from editor:', error);
+          setError("Error obteniendo el contenido del editor");
+          setLoading(false);
+          return;
+        }
+      } else {
+        console.error('❌ Editor not available for getHTML');
+        console.error('❌ Editor details:', {
+          editor: editor,
+          hasEditor: !!editor,
+          editorType: typeof editor,
+          hasGetHTML: editor ? typeof editor.getHTML === 'function' : false
+        });
+        setError("Editor no disponible");
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch('/api/v1/posts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ title, slug, content: await editor.getHTML() }),
+        body: JSON.stringify({ title, slug, content: htmlContent }),
       });
 
       if (response.status === 201) {
@@ -165,24 +206,33 @@ export default function AdminPage() {
   };
 
   const handleAIGenerate = (data: { title: string; content: string; slug: string }) => {
+    console.log('🤖 AI Generated data:', data);
     setTitle(data.title);
     setSlug(data.slug);
     // Convertir HTML a bloques de Editor.js
-    setContent(htmlToEditorJSBlocks(data.content));
+    const convertedContent = htmlToEditorJSBlocks(data.content);
+    console.log('🔄 Converted HTML to Editor.js blocks:', convertedContent);
+    setContent(convertedContent);
   };
 
   const handleAIImprove = (improvedContent: string) => {
+    console.log('🤖 AI Improved content:', improvedContent);
     // Convertir HTML a bloques de Editor.js
-    setContent(htmlToEditorJSBlocks(improvedContent));
+    const convertedContent = htmlToEditorJSBlocks(improvedContent);
+    console.log('🔄 Converted improved HTML to Editor.js blocks:', convertedContent);
+    setContent(convertedContent);
   };
 
   const handleVoiceDictate = (content: string, type: 'title' | 'body' | 'summary') => {
+    console.log('🎤 Voice dictated content:', { content, type });
     switch (type) {
       case 'title':
         setTitle(content);
         break;
       case 'body':
-        setContent(htmlToEditorJSBlocks(content));
+        const convertedContent = htmlToEditorJSBlocks(content);
+        console.log('🔄 Converted voice content to Editor.js blocks:', convertedContent);
+        setContent(convertedContent);
         break;
       case 'summary':
         // Podrías agregar un campo de resumen si lo necesitas
@@ -306,14 +356,14 @@ export default function AdminPage() {
           
           {previewMode ? (
             <div className="border border-gray-300 dark:border-gray-700 rounded-lg p-4 min-h-[300px] prose max-w-none">
-              <div dangerouslySetInnerHTML={{ __html: content }} />
+              <div dangerouslySetInnerHTML={{ __html: editorJSBlocksToHTML(content) }} />
             </div>
                       ) : (
               <EditorJSComponent
                 content={content}
                 onChange={setContent}
                 placeholder="Escribe tu contenido aquí..."
-                onEditorReady={setEditor}
+                onEditorReady={setEditorWithLog}
               />
             )}
         </div>
