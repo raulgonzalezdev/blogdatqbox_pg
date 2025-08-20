@@ -131,16 +131,16 @@ ${title ? `Título sugerido: ${title}` : 'Genera un título atractivo y SEO-frie
 Requisitos:
 - Longitud: ${lengthTokens[length]} palabras aproximadamente
 - Idioma: ${language === 'es' ? 'Español' : 'English'}
-- Formato: HTML con etiquetas apropiadas (h1, h2, h3, p, ul, li, strong, em)
+- Formato: Markdown con sintaxis apropiada (# ## ### para headers, **texto** para negrita, *texto* para cursiva, - para listas)
 - Incluye una introducción atractiva
 - Desarrolla el contenido con subtítulos y estructura clara
 - Concluye con un resumen o llamada a la acción
-${includeImages ? '- Incluye 2-3 etiquetas HTML img con URLs de Unsplash relacionadas al tema. Usa URLs como: https://images.unsplash.com/photo-[ID]?w=800&h=400&fit=crop' : '- NO incluyas etiquetas de imagen (img) en el contenido'}
+${includeImages ? '- Incluye 2-3 imágenes con sintaxis Markdown: ![alt text](https://images.unsplash.com/photo-[ID]?w=800&h=400&fit=crop)' : '- NO incluyas imágenes en el contenido'}
 
 Responde en formato JSON con esta estructura:
 {
   "title": "Título del post",
-  "content": "Contenido HTML completo",
+  "content": "Contenido Markdown completo",
   "slug": "slug-url-amigable",
   "summary": "Resumen de 2-3 líneas",
   "tags": ["tag1", "tag2", "tag3"]
@@ -208,7 +208,7 @@ Instrucciones: ${instructions}
 Contenido actual:
 ${content}
 
-Mejora el contenido manteniendo el formato HTML y responde solo con el contenido mejorado.
+Mejora el contenido manteniendo el formato Markdown y responde solo con el contenido mejorado.
 ${includeImages ? 'Si hay imágenes en el contenido, asegúrate de que las URLs sean válidas y de alta calidad.' : ''}
 `;
 
@@ -310,7 +310,7 @@ ${includeImages ? 'Si hay imágenes en el contenido, asegúrate de que las URLs 
     }
   }
 
-  // Método para procesar y reemplazar imágenes en el contenido
+  // Método para procesar y reemplazar imágenes en el contenido Markdown
   private processImagesInContent(content: string, topic: string): string {
     // Reemplazar URLs de placeholder con URLs reales
     let processedContent = content.replace(
@@ -319,18 +319,18 @@ ${includeImages ? 'Si hay imágenes en el contenido, asegúrate de que las URLs 
     );
 
     // Si no hay imágenes en el contenido, agregar una al principio
-    if (!processedContent.includes('<img')) {
+    if (!processedContent.includes('![')) {
       const imageUrl = getRandomImageForTopic(topic);
-      const imageTag = `<img src="${imageUrl}" alt="Imagen relacionada al tema" class="rounded-lg shadow-md my-6 max-w-full h-auto" />`;
+      const imageMarkdown = `![Imagen relacionada al tema](${imageUrl})`;
       
       // Insertar después del primer h1 o al principio si no hay h1
-      if (processedContent.includes('<h1>')) {
+      if (processedContent.includes('# ')) {
         processedContent = processedContent.replace(
-          /(<h1>.*?<\/h1>)/s,
-          `$1\n${imageTag}`
+          /(# .*?\n)/s,
+          `$1\n${imageMarkdown}\n\n`
         );
       } else {
-        processedContent = imageTag + '\n' + processedContent;
+        processedContent = imageMarkdown + '\n\n' + processedContent;
       }
     }
 

@@ -3,7 +3,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Save, Eye, ArrowLeft, Code } from "lucide-react";
-import RemirrorEditor from "@/components/RemirrorEditor";
+import { marked } from 'marked';
+import EasyMDEEditor from "@/components/EasyMDEEditor";
 import FileUpload from "@/components/FileUpload";
 import AIGenerator from "@/components/AIGenerator";
 import VoiceButton from "@/components/VoiceButton";
@@ -477,12 +478,12 @@ export default function AdminPage() {
              <div className="border border-gray-300 dark:border-gray-700 rounded-lg p-4 min-h-[300px] prose max-w-none">
                <div dangerouslySetInnerHTML={{ 
                  __html: hasManualChanges && originalAIContent 
-                   ? combineContentWithImages(content, originalAIContent)
-                   : content
+                   ? marked(combineContentWithImages(content, originalAIContent))
+                   : marked(content)
                }} />
              </div>
                        ) : (
-                               <RemirrorEditor
+                               <EasyMDEEditor
                   content={content}
                   onChange={handleEditorChange}
                   placeholder="Escribe tu contenido aquí..."

@@ -3,12 +3,12 @@ import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, Eye, Code, CheckCircle, XCircle } from 'lucide-react';
 import RichTextEditor from '@/components/RichTextEditor';
-import EditorJSComponent from '@/components/EditorJS';
+import EasyMDEEditor from '@/components/EasyMDEEditor';
 import AIGenerator from '@/components/AIGenerator';
 import VoiceButton from '@/components/VoiceButton';
 import { useDialogContext } from '@/components/DialogProvider';
 
-type EditorType = 'tiptap' | 'editorjs';
+type EditorType = 'tiptap' | 'easymde';
 
 interface PostData {
   title: string;
@@ -18,12 +18,12 @@ interface PostData {
 }
 
 export default function CompareEditorsPage() {
-  const [selectedEditor, setSelectedEditor] = useState<EditorType>('editorjs');
+  const [selectedEditor, setSelectedEditor] = useState<EditorType>('easymde');
   const [postData, setPostData] = useState<PostData>({
     title: '',
     slug: '',
     content: '',
-         editorType: 'editorjs'
+         editorType: 'easymde'
   });
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -34,7 +34,7 @@ export default function CompareEditorsPage() {
   const { confirm, alert } = useDialogContext();
   
   const tiptapEditorRef = useRef<any>(null);
-  const editorJSRef = useRef<any>(null);
+  const easyMDERef = useRef<any>(null);
 
   // Verificar autenticación al cargar
   React.useEffect(() => {
@@ -98,9 +98,9 @@ export default function CompareEditorsPage() {
         htmlContent = postData.content as string;
       } else {
         // Convertir Editor.js JSON a HTML
-        if (editorJSRef.current) {
-          htmlContent = await editorJSRef.current.getHTML();
-        }
+              if (easyMDERef.current) {
+        htmlContent = await easyMDERef.current.getHTML();
+      }
       }
 
       const response = await fetch('/api/v1/posts', {
@@ -246,15 +246,15 @@ export default function CompareEditorsPage() {
           {/* Editor.js */}
           <div 
             className={`p-6 border-2 rounded-lg cursor-pointer transition-all ${
-              selectedEditor === 'editorjs' 
+              selectedEditor === 'easymde' 
                 ? 'border-green-500 bg-green-50 dark:bg-green-900/20' 
                 : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
             }`}
-            onClick={() => handleEditorChange('editorjs')}
+                          onClick={() => handleEditorChange('easymde')}
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium">Editor.js (Estilo Notion)</h3>
-              {selectedEditor === 'editorjs' && (
+              {selectedEditor === 'easymde' && (
                 <CheckCircle className="w-6 h-6 text-green-500" />
               )}
             </div>
@@ -327,7 +327,7 @@ export default function CompareEditorsPage() {
                   setPostData(prev => ({ ...prev, content }));
                 }
               }}
-              onGenerateTitle={(title) => setPostData(prev => ({ ...prev, title }))}
+
             />
           </div>
 
@@ -376,12 +376,12 @@ export default function CompareEditorsPage() {
               }}
             />
           ) : (
-            <EditorJSComponent
+            <EasyMDEEditor
               content={postData.content}
               onChange={handleContentChange}
               placeholder="Escribe tu contenido aquí..."
               onEditorReady={(editor) => {
-                editorJSRef.current = editor;
+                easyMDERef.current = editor;
               }}
             />
           )}

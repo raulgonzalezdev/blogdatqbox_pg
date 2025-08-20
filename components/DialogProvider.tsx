@@ -44,10 +44,10 @@ export default function DialogProvider({ children }: DialogProviderProps) {
           isOpen={isOpen}
           onClose={closeDialog}
           onConfirm={handleConfirm}
-          title={options.title}
-          message={options.message}
-          confirmText={options.confirmText}
-          cancelText={options.cancelText}
+          title={options.title || ''}
+          message={options.message || ''}
+          confirmText={options.confirmText || ''}
+          cancelText={options.cancelText || ''}
           type={options.type as any}
         />
       )}
@@ -57,8 +57,8 @@ export default function DialogProvider({ children }: DialogProviderProps) {
         <ErrorDialog
           isOpen={isOpen}
           onClose={closeDialog}
-          title={options.title}
-          message={options.message}
+          title={options.title || ''}
+          message={options.message || ''}
           type={options.type as any}
         />
       )}

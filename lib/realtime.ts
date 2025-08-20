@@ -184,8 +184,8 @@ export class RealtimeService {
       }
 
       // Configurar respuesta SDP
-      const answer = {
-        type: 'answer',
+      const answer: RTCSessionDescriptionInit = {
+        type: 'answer' as RTCSdpType,
         sdp: await sdpResponse.text()
       };
       await pc.setRemoteDescription(answer);

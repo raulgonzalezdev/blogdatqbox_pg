@@ -2,8 +2,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Save, Eye, ArrowLeft, Trash2 } from "lucide-react";
-import EditorJSComponent from "@/components/EditorJS";
-import { htmlToEditorJSBlocks, editorJSBlocksToHTML } from "@/lib/editor-converter";
+import { marked } from 'marked';
+import EasyMDEEditor from "@/components/EasyMDEEditor";
 import FileUpload from "@/components/FileUpload";
 import AIGenerator from "@/components/AIGenerator";
 import VoiceButton from "@/components/VoiceButton";
@@ -11,7 +11,7 @@ import VoiceButton from "@/components/VoiceButton";
 export default function EditPostPage() {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
-  const [content, setContent] = useState<any>({ blocks: [] });
+  const [content, setContent] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
@@ -51,8 +51,8 @@ export default function EditPostPage() {
         setPost(postData);
         setTitle(postData.title);
         setSlug(postData.slug);
-        // Convertir HTML a bloques de Editor.js
-        setContent(htmlToEditorJSBlocks(postData.content));
+        // Usar el contenido HTML directamente para EasyMDE
+        setContent(postData.content);
       } else {
         setError("Post no encontrado");
       }
@@ -108,7 +108,7 @@ export default function EditPostPage() {
       setLoading(false);
       return;
     }
-    if (!content.blocks || content.blocks.length === 0) {
+    if (!content || content.trim() === '') {
       setError("El contenido es requerido");
       setLoading(false);
       return;
@@ -120,31 +120,16 @@ export default function EditPostPage() {
     }
 
     try {
-      // Obtener el contenido HTML del editor
-      let htmlContent = '';
-      if (editor && typeof editor.getHTML === 'function') {
-        try {
-          htmlContent = await editor.getHTML();
-          console.log('📄 HTML content for submission:', htmlContent);
-        } catch (error) {
-          console.error('❌ Error getting HTML from editor:', error);
-          setError("Error obteniendo el contenido del editor");
-          setLoading(false);
-          return;
-        }
-      } else {
-        console.error('❌ Editor not available for getHTML');
-        setError("Editor no disponible");
-        setLoading(false);
-        return;
-      }
+      // Usar el contenido directamente (EasyMDE devuelve Markdown)
+      const markdownContent = content;
+      console.log('📄 Markdown content for submission:', markdownContent);
 
       const response = await fetch(`/api/v1/posts/${postId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ title, slug, content: htmlContent }),
+        body: JSON.stringify({ title, slug, content: markdownContent }),
       });
 
       if (response.ok) {
@@ -192,13 +177,13 @@ export default function EditPostPage() {
   const handleAIGenerate = (data: { title: string; content: string; slug: string }) => {
     setTitle(data.title);
     setSlug(data.slug);
-    // Convertir HTML a bloques de Editor.js
-    setContent(htmlToEditorJSBlocks(data.content));
+    // Usar el contenido directamente (Markdown)
+    setContent(data.content);
   };
 
   const handleAIImprove = (improvedContent: string) => {
-    // Convertir HTML a bloques de Editor.js
-    setContent(htmlToEditorJSBlocks(improvedContent));
+    // Usar el contenido directamente (Markdown)
+    setContent(improvedContent);
   };
 
   const handleVoiceDictate = (content: string, type: 'title' | 'body' | 'summary') => {
@@ -207,7 +192,7 @@ export default function EditPostPage() {
         setTitle(content);
         break;
       case 'body':
-        setContent(htmlToEditorJSBlocks(content));
+        setContent(content);
         break;
       case 'summary':
         // Podrías agregar un campo de resumen si lo necesitas
@@ -328,10 +313,10 @@ export default function EditPostPage() {
             
             {previewMode ? (
               <div className="border border-gray-300 dark:border-gray-700 rounded-lg p-4 min-h-[300px] prose max-w-none">
-                <div dangerouslySetInnerHTML={{ __html: editorJSBlocksToHTML(content) }} />
+                <div dangerouslySetInnerHTML={{ __html: marked(content) }} />
               </div>
             ) : (
-              <EditorJSComponent
+              <EasyMDEEditor
                 content={content}
                 onChange={setContent}
                 placeholder="Escribe tu contenido aquí..."

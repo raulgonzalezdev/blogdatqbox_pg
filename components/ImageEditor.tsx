@@ -108,7 +108,10 @@ export default function ImageEditor({ isOpen, onClose, currentUrl, onSave }: Ima
                     className="w-full h-32 object-cover rounded"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
-                      e.currentTarget.nextElementSibling!.style.display = 'flex';
+                      const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                      if (nextElement) {
+                        nextElement.style.display = 'flex';
+                      }
                     }}
                   />
                   <div 
